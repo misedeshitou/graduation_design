@@ -1,4 +1,4 @@
-\chapter{电缆机器人结构及动力学建模}\label{chap:guide}
+\chapter{电缆机器人结构及动力学建模}\label{chap:model}
 
 电缆机器人最终采取串联五连杆轮腿构型。为了实现对电缆机器人运动学和动力学的分析与控制，首先需要建立其结构模型和动力学模型。本章介绍电缆机器人的建模方法，包括坐标系定义、运动学分析和动力学推导。
 
@@ -17,7 +17,7 @@
 %   \centering
 %   \includegraphics[width=0.5\textwidth]{figures/five_bar.png}
 %   \caption{五连杆构型图解简化}
-\begin{figure}[htbp]
+\begin{figure}[H]
   \centering
   \begin{tikzpicture}[scale=1.2, >=stealth]
     
@@ -88,11 +88,11 @@
   \label{fig:linkage-analysis}
 \end{figure}
 
-\begin{table}[htbp]
+\begin{table}[H]
   \centering
   \caption{五连杆相关参数定义}\label{tab:five_bar_definition}
   \renewcommand{\arraystretch}{1.3}
-  \begin{tabular}{llp{7cm}}
+  \begin{tabular}{llp{5cm}}
     \toprule
     \textbf{参数} & \textbf{含义} & \textbf{说明} \\
     \midrule
@@ -100,6 +100,8 @@
     $\phi_4$ & 后腿电机转动角度 & 通过后腿电机编码器读取 \\
     $l_1$ & 前腿长度 & 五连杆机构的前侧主连杆长度 \\
     $l_2$ & 后腿长度 & 五连杆机构的后侧主连杆长度 \\
+    $l_3$ & 对侧前腿长度 & 一般设计$l_3=l_1$ \\
+    $l_4$ & 对侧后腿长度 & 一般设计$l_4=l_2$ \\
     $L_0$ & 等效虚拟腿长 & 由五连杆机构几何关系计算得到 \\
     $\varPhi_0$ & 虚拟腿摆角 & 虚拟腿相对机体的摆动角 \\
     $\theta$ & 虚拟腿倾角 &虚拟腿相对于地面的倾角\\
@@ -163,7 +165,7 @@
 
 通过上述关系，可以将电机角度 $\phi_1$、$\phi_4$ 映射到足端位置 $P(x_p, z_p)$，实现对足端位置的控制。
 
-\subsection{VMC雅各比矩阵}
+\subsection{VMC与雅各比矩阵}
 虚拟模型控制（Virtual Model Control，VMC）是一种直观且有效的运动学与动力学控制方法，广泛应用于足式和轮腿式机器人的平衡与运动控制中。其核心思想是在机器人内部或机器人与其所处环境（如机体中心与地面支撑点）之间，引入虚拟的机械元件（如虚拟弹簧、虚拟阻尼器等），以计算出使其实现期望运动或维持期望姿态所需的“虚拟力”。随后，借助机构的雅可比矩阵（Jacobian Matrix），将这组虚拟力映射为对应各个物理关节的期望输入力矩。
 
 在本文设计的轮腿系统中，通常将复杂的五连杆结构等效为一根具备可变长度与角度的“虚拟腿”。通过在虚拟腿和机体的质心之间布置径向与切向的虚拟弹簧阻尼系统，并通过调节虚拟腿长 $L_0$ 与摆角 $\varPhi_0$ 的期望值，即可实现对电缆机器人机体的高度、支撑力以及俯仰姿态的平滑协调控制。为了将虚拟模型得到的端点控制力矩分配到实际的驱动电机上，需要进一步推导从关节空间到虚拟腿空间的雅各比矩阵映射关系。
@@ -357,3 +359,39 @@ T = simplify(J.'*R*M)
         F \\ T_p
     \end{bmatrix}
 \end{equation}
+
+\subsection{机器人具体结构参数设定}
+由于后续需要继续进行动力学建模与控制器设计，因此需要对机器人结构参数进行具体设定。根据前文的设计方案，机器人采用串联五连杆轮腿构型，相关参数定义如表~\ref{tab:five_bar_definition} 所示。
+
+\begin{table}[htbp]
+  \centering
+  \caption{机器人基本几何参数设定}\label{tab:five_bar_definition}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{llp{5cm}}
+    \toprule
+    \textbf{参数} & \textbf{含义} & \textbf{数值} \\
+    \midrule
+    $R$ & 驱动轮半径 & 0.06m \\
+    $R_l$ & 轮距的一半 & 0.2395m \\
+    $l_c$ & 质心偏移 & 0.035m \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{机器人腿部参数设定}\label{tab:five_bar_definition}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{llp{5cm}}
+    \toprule
+    \textbf{参数} & \textbf{含义} & \textbf{数值} \\
+    \midrule
+    $R$ & 驱动轮半径 & 0.06m \\
+    $m_w$ & 单个轮子质量 & 0.9kg \\
+    $m_l$ & 单条腿质量 & 1.948kg \\
+    $m_b$ & 身体质量 & 25.0kg \\
+    $I_ll$ & 左腿转动惯量 &$0.03kg\cdot m^2$\\
+    $I_lr$ & 右腿转动惯量 &$0.03kg\cdot m^2$\\
+    \bottomrule
+  \end{tabular}
+\end{table}
