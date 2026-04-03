@@ -32,4 +32,133 @@ DWA（Dynamic Window Approach）是一种常用且高效的局部路径规划和
 
 经过在仿真的高空电缆环境中的充分训练验证，电缆机器人便可自主获得集环境动态避障、车体位姿平衡与底层 VMC 控制命令输出为一体的“端到端”最优路径规划模型。
 
+本毕业设计尝试对比了传统 A* 算法、DWA 算法与基于深度强化学习的路径规划算法在电缆机器人路径规划任务中的性能表现。其中深度强化学习算法主要分别部署了DQN、SAC、SAC串联transformer三种不同的网络结构，以评估其在复杂动态环境中的适应性和效率。
 
+\subsection{DQN}
+DQN（Deep Q-Network，深度Q网络）是强化学习领域的一个标志性算法。它将深度神经网络（Deep Learning）与传统的Q-Learning相结合，有效解决了传统强化学习在处理高维、连续状态空间时遭遇的“维度灾难”问题。以下是 DQN 算法几个核心原理与机制：
+
+\subsubsection{价值函数近似}
+传统的 Q-Learning 通过维护一张 Q-Table 来记录在每个状态 $s$ 下采取动作 $a$ 对应的期望累计回报 $Q(s, a)$。但在复杂的连续环境中，状态数量可能极其庞大。DQN 提出使用一个深度神经网络（Q 网络）来近似拟合这个 Q 函数：
+\begin{equation}
+    Q(s, a; \theta) \approx Q^*(s, a)
+\end{equation}
+其中 $\theta$ 是神经网络的参数，输入为状态 $s$，输出是在该状态下各个离散动作的 $Q$ 值。
+
+\subsubsection{经验回放（Experience Replay）}
+智能体与环境交互产生的数据通常具有极强的时间相关性。如果直接使用这些序列数据训练神经网络，容易引发灾难性遗忘并导致网络极其不稳定。DQN 引入了容量为 $N$ 的经验回放池，将智能体每一步的经验元组 $(s, a, r, s')$ 存储起来。在训练网络时，从中随机抽取一个小批量（Mini-batch）数据进行梯度下降。这种机制打破了数据间的时间相关性，使其近似独立同分布，同时提高了样本的利用率。
+
+\subsubsection{双网络结构（目标网络与评估网络）}
+在传统的 Q-Learning 中，更新当前 Q 值的 TD 目标（Temporal Difference Target）依赖于 Q 值本身。如果只用一个网络，在更新当前 Q 值的同时，目标 Q 值也会随之改变，极易导致训练震荡甚至发散。为此，DQN 采用了两个结构完全相同的神经网络：
+\begin{itemize}
+    \item \textbf{评估网络（Evaluate Network）} $Q(s, a; \theta)$：负责输出当前的 Q 值，并且在每一步都通过梯度下降进行参数更新。
+    \item \textbf{目标网络（Target Network）} $Q_{target}(s', a'; \theta^-)$：负责计算 TD 目标。其参数 $\theta^-$ 会被冻结，不参与梯度更新，仅在每隔一定步数后，将评估网络的参数 $\theta$ 完整复制给目标网络。
+\end{itemize}
+该机制使得一段时间内的目标值保持相对固定，大幅提高了训练的稳定性。
+
+\subsubsection{损失函数计算}
+DQN 的本质是一个回归任务，其目标是让评估网络输出的预测值 $Q_{eval}(s, a)$ 尽可能逼近真实的目标值。其损失函数通过均方误差（MSE）定义为：
+\begin{equation}
+    Loss(\theta) = \mathbb{E}_{(s,a,r,s') \sim U(D)} \left[ \Big( \underbrace{r + \gamma \max_{a'} Q_{target}(s', a'; \theta^-)}_{\text{TD 目标值}} - \underbrace{Q_{eval}(s, a; \theta)}_{\text{当前预测值}} \Big)^2 \right]
+\end{equation}
+其中 $r$ 为即时奖励，$\gamma$ 为折扣因子。网络通过让该 Loss 最小化，利用反向传播算法（如 Adam 优化器）更新评估网络的参数 $\theta$。
+
+\subsubsection{$\epsilon$-Greedy 策略工作流程}
+为了平衡探索（尝试新动作）与利用（选择当前利益最大的动作），DQN 采用 $\epsilon$-greedy 策略：以 $\epsilon$ 的概率随机选择一个动作，以 $1 - \epsilon$ 的概率选择当前评估网络认为 $Q$ 值最大的动作 $a = \arg\max_{a} Q_{eval}(s, a; \theta)$。
+
+整个 DQN 的工作流程如下：
+\begin{enumerate}
+    \item 观察当前状态 $s$；
+    \item 根据 $\epsilon$-greedy 策略选择动作 $a$；
+    \item 执行动作，获得奖励 $r$ 和新状态 $s'$；
+    \item 存储该经验 $(s, a, r, s')$ 到经验回放池中；
+    \item 从池中随机抽取一批数据；
+    \item 计算 Loss 并利用梯度下降更新评估网络的参数 $\theta$；
+    \item 定期将评估网络的参数同步给目标网络 $\theta^-$。
+\end{enumerate}
+
+\subsection{SAC}
+SAC（Soft Actor-Critic，柔性行为者-评论家算法）是一种基于最大熵强化学习框架的算法。与传统的强化学习方法相比，SAC 通过引入熵正则化项来鼓励智能体在策略选择上保持一定程度的随机性，从而提高了探索效率和策略的鲁棒性。以下是 SAC 的核心原理与机制：
+
+\subsubsection{最大熵目标函数}
+传统的强化学习旨在寻找一个策略 $\pi$ 来最大化期望累计奖励。而在 SAC 中，目标函数被修改为最大化期望累积奖励与策略熵（Entropy）之和。其目标函数定义为：
+\begin{equation}
+    J(\pi) = \sum_{t=0}^{T} \mathbb{E}_{(s_t, a_t) \sim \rho_\pi} \left[ r(s_t, a_t) + \alpha \mathcal{H}(\pi(\cdot|s_t)) \right]
+\end{equation}
+
+其中，$\alpha$ 是温度参数（Temperature Parameter），用于控制奖励与熵之间的相对重要性；$\mathcal{H}(\pi(\cdot|s_t))$ 是策略在状态 $s_t$ 下的香农熵。熵越大，表示智能体对动作的选择越随机。这种机制促使智能体在能够完成任务的前提下，尽可能多地探索不同的动作，从而极大地提升了算法的探索能力和对环境持续变化的鲁棒性。
+
+\subsubsection{柔性价值函数与贝尔曼方程}
+基于最大熵框架，SAC 重新定义了状态价值函数（Soft Value Function）和动作价值函数（Soft Q-Function）。柔性状态价值函数 $V(s_t)$ 包含了熵奖励：
+\begin{equation}
+    V(s_t) = \mathbb{E}_{a_t \sim \pi} \left[ Q(s_t, a_t) - \alpha \log \pi(a_t|s_t) \right]
+\end{equation}
+
+对应的柔性贝尔曼方程更新规则为：
+\begin{equation}
+    Q(s_t, a_t) = r(s_t, a_t) + \gamma \mathbb{E}_{s_{t+1} \sim p} \left[ V(s_{t+1}) \right]
+\end{equation}
+在实际算法实现中，SAC 通常使用神经网络来逼近这些价值函数。
+
+\subsubsection{Actor-Critic 架构与双 Q 网络机制}
+SAC 采用了 Actor-Critic（演员-评论家）架构，能够很好地处理连续动作空间：
+\begin{itemize}
+    \item \textbf{Critic 网络}：为了缓解 Q 值的高估问题（Overestimation Bias），SAC 借鉴了 TD3 算法的思想，使用两个独立的 Q 网络 $Q_{\theta_1}$ 和 $Q_{\theta_2}$，在计算目标值时取两者的最小值：$Q_{target} = \min(Q_{\theta_1}, Q_{\theta_2})$。
+    \item \textbf{Actor 网络}：负责输出一个随机策略。在连续控制任务中，通常假设策略服从高斯分布，Actor 网络输出该分布的均值 $\mu$ 和协方差 $\Sigma$。
+\end{itemize}
+
+\subsubsection{重参数化技巧（Reparameterization Trick）}
+由于 Actor 网络的输出是一个概率分布，直接从分布中采样动作 $a_t$ 会阻断梯度反向传播。为了解决这一问题，SAC 使用了重参数化技巧。具体而言，动作被表示为一个确定性函数 $f_\phi$ 与独立噪声 $\epsilon$ 的结合：
+\begin{equation}
+    a_t = f_\phi(\epsilon_t; s_t)
+\end{equation}
+其中噪声 $\epsilon_t$ 通常采样自标准正态分布 $\mathcal{N}(0, I)$。通过这种方式，采样过程的随机性被转移到了外部噪声上，使得 Actor 网络的参数 $\phi$ 能够通过链式法则顺利进行梯度更新。
+
+\subsection{具有时间感知的序列策略：Transformer 的引入}
+传统强化学习算法（如标准的 DQN 或 SAC）通常基于马尔可夫决策过程（MDP）的假设，即当前状态包含了决策所需的全部信息。然而，在电缆机器人的实际运行环境中，往往面临着部分可观测马尔可夫决策过程（POMDP）。例如，风偏的动态周期规律或电缆振动的滞后效应，单靠一帧传感器的静态数据很难做出准确的预测。为解决这一问题，本研究在 SAC 的基础上串联引入了 Transformer 模型。
+
+Transformer 是一种基于自注意力机制（Self-Attention）的深度学习架构，最初在自然语言处理领域大放异彩。由于其强大的长距离依赖捕捉和序列建模能力，将 Transformer 应用于强化学习能够有效处理时序相关的动态状态输入。以下是将其融入路径规划算法的核心原理：
+
+\subsubsection{自注意力机制（Self-Attention）}
+Transformer 的核心是缩放点积自注意力机制（Scaled Dot-Product Attention）。其目的是让模型在处理当前状态信息时，能够自适应地“关注”历史序列中更重要的时间步。对于提取的输入序列，通过线性映射可分别得到查询特征（Query, $Q$）、键特征（Key, $K$）和值特征（Value, $V$）。自注意力的计算公式为：
+\begin{equation}
+    Attention(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+\end{equation}
+其中，$d_k$ 为键序列的特征维度。该公式通过计算序列内部不同时间步之间的关联权重（softmax 输出），实现了对历史经验或动态干扰趋势的提取和加权融合。
+
+\subsubsection{时序输入与位置编码（Positional Encoding）}
+为了保留智能体轨迹数据的时间顺序信息，防止 Transformer 将输入视为无序集合，需要加入位置编码。位置编码与经过初步特征提取的状态序列向量相加，共同送入 Transformer 的多头注意力（Multi-Head Attention）层：
+\begin{equation}
+    PE_{(pos, 2i)} = \sin(pos / 10000^{2i/d_{model}})
+\end{equation}
+\begin{equation}
+    PE_{(pos, 2i+1)} = \cos(pos / 10000^{2i/d_{model}})
+\end{equation}
+通过这种方式，智能体可以感知到电缆振动或障碍物位移随时间推移的周期性变化特征。
+
+\subsubsection{SAC 与 Transformer 的时序融合网络结构设计}
+在本项目中，为了克服单帧传感器数据带来的部分可观测马尔可夫决策过程（POMDP）问题，我们设计了 TransSAC（Transformer-based Soft Actor-Critic）算法。其结合机制主要体现在网络结构的输入处理和特征提取层上，具体流程如下：
+
+\begin{itemize}
+    \item \textbf{时间窗（Time Window）输入拓展}：与传统 SAC 仅接收单帧状态 $s_t$ 不同，本算法引入了一个经验队列（TimeWindowQueue）来收集过去 $T$ 帧的历史数据。Actor 和 Critic 网络的输入从单步的 $(Batch, State\_dim)$ 拓展为了包含时间维度的序列数据 $(Batch, T, State\_dim)$。
+    
+    \item \textbf{传感器数据的切割与空间位置编码}：在网络前端，系统将时序状态数据进行物理意义上的切分：前部分维度代表机器人的本体状态（如姿态角），后部分维度代表外部环境感知（如雷达探测数据）。为雷达特征序列引入位置编码（Positional Encoding）后，将其送入 Transformer Encoder 层。
+    
+    \item \textbf{自注意力时序特征提取与池化}：Transformer 利用自注意力机制在时间维度 $T$ 上提取特征映射，随后对时间序列输出取平均池化 $\text{mean}(dim=1)$，将过去 $T$ 帧的雷达动态变化浓缩为一个定长的综合特征向量。
+    
+    \item \textbf{残差拼接与联合决策}：网络并没有完全丢弃瞬时状态，而是巧妙地将 Transformer 聚合出的“历史环境动态特征”与“当前时刻的精确本体状态”在特征维度上进行拼接（Concat）。融合后的增强状态随即被送入传统 SAC 的全连接层（MLP），由 Actor 输出动作分布，Critic 评估价值函数 $Q_1, Q_2$。
+\end{itemize}
+
+\subsubsection{融合算法的优势与实际意义}
+将 Transformer 与 SAC 进行深度融合（TransSAC），在电缆机器人的动态复杂环境导航中具有以下几个关键意义：
+
+\begin{enumerate}
+    \item \textbf{突破部分可观测性（POMDP）限制}：在实时避障过程中，单帧雷达扫描仅能获知障碍物的当前静止位置，无法判断其速度、运动轨迹。引入包含 $T$ 帧信息的 Transformer 后，智能体具备了“短时记忆”，能够从连续的时间序列中自主推断出高压线动态变形或障碍物运动的内在规律。
+    
+    \item \textbf{高效的时序关联提取}：相比于将 $T$ 帧数据直接展平送入多层感知机（MLP），或者使用传统的 RNN/LSTM 循环网络，Transformer 的自注意力机制能够并行且有效地衡量局部历史片段之间的关联权重。它能自动“关注”那些对当前决策影响最大的历史关键帧（例如风向突变或障碍物加速的瞬间），从而更精准地提取动态序列特征。
+    
+    \item \textbf{兼顾历史预判与瞬时精度（残差思想）}：在网络设计中，我们将当前帧的精确物理状态单独拉出，与 Transformer 提炼的历史特征并联拼接。这种设计使得 Transformer 仅作为“历史动态评估顾问”，不仅不会因为注意力聚合而模糊掉最新的本体姿态和精确定位，反而还能在保证决策反应速度与精度的同时，赋予算法前瞻性的防撞与位姿调整能力。
+\end{enumerate}
+
+综上所述，通过串联 Transformer 结构，算法能够“记忆”雷达在历史时间窗口内扫描到的障碍物位置序列，进而有效推断出周围动态目标的速度和可能的前进方向。相较于仅依赖单帧瞬时状态的纯 SAC 算法，这一改进直接解决了动态避障中的部分可观测难题，极大地赋予了电缆机器人在面对未知移动障碍物时的前瞻性轨迹规划与主动避撞能力。
+
+由于轮腿机器人的运动控制与传统移动机器人存在显著差异，强化学习算法在该领域的应用尚处于探索阶段。通过与传统 A* 和 DWA 算法的对比实验，验证了基于 DRL 的路径规划在复杂动态环境中的优越性，尤其是在面对高空风扰动和密集金具障碍时，DRL 展现出了更强的适应性和鲁棒性。然而，强化学习算法的训练过程通常需要大量的交互数据和计算资源，且在实际部署中可能面临安全性和稳定性的问题。因此，未来的研究可以进一步探索如何结合传统算法的启发式搜索能力与强化学习的自适应决策能力，以实现更高效、更安全的路径规划解决方案。
