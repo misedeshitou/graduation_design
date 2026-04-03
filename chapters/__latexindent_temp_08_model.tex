@@ -163,7 +163,18 @@
     \label{eq:l0_phi0}
 \end{equation}
 
-通过上述关系，可以将电机角度 $\phi_1$、$\phi_4$ 映射到足端位置 $P(x_p, z_p)$，实现对足端位置的控制。
+通过上述关系，可以将电机角度 $\phi_1$、$\phi_4$ 映射到足端位置 $P(x_p, z_p)$，实现对足端位置的控制。公式\ref{eq:l0_phi0} 中的 $L_0$ 和 $\phi_0$ 即为后续虚拟模型控制中使用的虚拟腿长和摆角,描述了足端力/力矩 $\gamma$ 与关节电机力矩 $\tau$ 之间的映射关系，$J^T$ 是雅可比矩阵的转置。
+
+\subsection{五连杆动态静力学}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/five_bar_kinetics.png}
+  \caption{五连杆机构动态静力学分析}
+  \label{fig:five-bar-kinetics}
+\end{figure}
+
+动态静力学记 $\gamma = [F_{bl} \quad T_{bl}]^T$，$\tau = [\tau_1 \quad \tau_2]^T$根据虚功原理可得：$$\tau = J^T \gamma \quad (5.1)$$
+其中 $J$ 是雅可比矩阵，描述了足端力/力矩 $\gamma$ 与关节电机力矩 $\tau$ 之间的映射关系，$J^T$ 是雅可比矩阵的转置。通过上述关系，可以将电机角度 $\phi_1$、$\phi_4$ 映射到足端位置 $P(x_p, z_p)$，实现对足端位置的控制。公式\ref{eq:l0_phi0} 中的 $L_0$ 和 $\phi_0$ 即为后续虚拟模型控制中使用的虚拟腿长和摆角。
 
 \subsection{VMC与雅各比矩阵}
 虚拟模型控制（Virtual Model Control，VMC）是一种直观且有效的运动学与动力学控制方法，广泛应用于足式和轮腿式机器人的平衡与运动控制中。其核心思想是在机器人内部或机器人与其所处环境（如机体中心与地面支撑点）之间，引入虚拟的机械元件（如虚拟弹簧、虚拟阻尼器等），以计算出使其实现期望运动或维持期望姿态所需的“虚拟力”。随后，借助机构的雅可比矩阵（Jacobian Matrix），将这组虚拟力映射为对应各个物理关节的期望输入力矩。
@@ -365,9 +376,9 @@ T = simplify(J.'*R*M)
 
 \begin{table}[htbp]
   \centering
-  \caption{机器人基本几何参数设定}\label{tab:five_bar_definition}
+  \caption{机器人基本几何参数设定}\label{tab:geometry_params}
   \renewcommand{\arraystretch}{1.3}
-  \begin{tabular}{llp{5cm}}
+  \begin{tabularx}{\textwidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
     \toprule
     \textbf{参数} & \textbf{含义} & \textbf{数值} \\
     \midrule
@@ -375,14 +386,14 @@ T = simplify(J.'*R*M)
     $R_l$ & 轮距的一半 & 0.2395m \\
     $l_c$ & 质心偏移 & 0.035m \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
-\begin{table}[htbp]
+\begin{table}[H]
   \centering
-  \caption{机器人腿部参数设定}\label{tab:five_bar_definition}
+  \caption{机器人腿部参数设定}\label{tab:leg_params}
   \renewcommand{\arraystretch}{1.3}
-  \begin{tabular}{llp{5cm}}
+  \begin{tabularx}{\textwidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
     \toprule
     \textbf{参数} & \textbf{含义} & \textbf{数值} \\
     \midrule
@@ -393,5 +404,5 @@ T = simplify(J.'*R*M)
     $I_ll$ & 左腿转动惯量 &$0.03kg\cdot m^2$\\
     $I_lr$ & 右腿转动惯量 &$0.03kg\cdot m^2$\\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
