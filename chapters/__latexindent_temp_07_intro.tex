@@ -25,7 +25,7 @@
 
 \section{电缆通道检测机器人国内外研究现状}
 
-\subsection{轮腿式底盘机器人}
+\subsection{底盘结构方案：轮腿式底盘机器人}
 2017年，Boston Dynamics公司曝光了一款轮式机器人Handle演示的视频[12]，其最大特点是集轮子和腿为一体，兼具了轮式机器人和腿式机器人的优势。该机器人高约1.98m，重82kg，行进速度约14km/h，垂直跳跃高度约1.2m，一次充电的续航能力约为24km，可搬运45kg以上的重物，还能在多种恶劣环境下顺利行动，如山地,雪地和崎岖的地形。
 
 \begin{figure}[H]
@@ -37,9 +37,26 @@
 
 苏黎世联邦理工（ETH Zurich）的学生团队Victor Klemm 等人于2018 年9 月研制出了名为Ascento 的双轮跳跃机器人，[13]该机器人主要用于室内巡检，平整地面用轮子快速移动，并通过跳跃来越障。机械结构方面Ascento腿部采用四连杆机构，使整车结构紧凑。Ascento 通过线性二次调节器 (LQR)实现机器人的平衡和运动控制。对于跳跃和坠落恢复的机动过程，则使用带有反馈跟踪的顺序前馈控制器。跌倒恢复的控制策略是该机器人的一大创新，总结了轮腿式双足机器人跌倒后可能会出现的四种稳定位姿，并提出收缩腿部、受控伸展、施加力矩三个恢复步骤。
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.4\textwidth]{figures/eth_1.png}
+  \hspace{1cm}
+  \includegraphics[width=0.4\textwidth]{figures/eth_2.png}
+  \caption{Ascento机器人实物图（左）与简化图示（右）}
+  \label{fig:eth-ascento}
+\end{figure}
+
+
 腾讯 AI Lab 及 Robotics X 实验室主任张正友博士在机器人行业顶会 ICRA 2021 做大会报告，分享了研发中的轮腿式机器人Ollie [14]，在视频中表现了双轮平衡、多模态移动、跳跃、360度空翻等运动能力。Ollie单腿采用并联机构，与身体形成五连杆结构，使整体具有结构简单、动态性能高、爆发力强的特点。机器人基本运动控制采用LQR控制器，此外为适应更多复杂场景，补充采用了IDA-PBC（interconnection and damping assignment- passivity-based control）。
 
-\subsubsection{路径规划算法}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/ollie.png}
+  \caption{腾讯AI实验室研发的轮腿式机器人Ollie}
+  \label{fig:tencent-ollie}
+\end{figure}
+
+\subsection{路径规划算法方案：基于深度强化学习的路径规划算法}
 
 Tai et al.[15]提出了一种基于CNN的DRL模型，该模型以原始RGB-D图像为输入，移动机器人的控制命令为输出。CNN网络的初始权值来自于他们之前工作[13]中训练的参数。但是，由于奖励函数的设计没有涉及鼓励探索的机制，因此该模型只能在简单的走廊环境中实现避障。Jiang等人[17]提出了一种基于启发式制导和避障知识的DQN算法，在路径规划的训练效率和环境适应性方面取得了一定的效果。然而，由于启发式知识限制了DRL智能体的探索能力，规划的路径在路径长度和平滑度方面并不令人满意。[18] Niroui等人研究了一种将DRL与传统的基于边界的方法相结合的勘探模型。DRL模型输出边界点的权重参数，然后根据预定义的代价函数计算出代价最低的边界点。Chen等人[19]提出了一种基于DRL的探索方法，该方法以局部网格图为状态空间，动作空间为随机集合。Zhu等人[20]提出了一种分层DRL网络框架，其中低层DRL策略使机器人在向目标位置移动的同时与障碍物保持安全距离，高层DRL策略作为补充，进一步提高路径规划的安全性。同时，通过选择子目标节点减少状态空间，避免稀疏奖励，该方法在采样效率和迁移能力上都取得了出色的表现。
 
