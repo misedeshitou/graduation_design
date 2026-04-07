@@ -135,8 +135,6 @@
     % 水平力 (红色)
     \draw[->, red, thick] (BodyCenter) -- ++(1.5, 0) node[below] {$F_{bs,l}$};
     
-    % **用户要求修改**的旋转力矩 T_{bl} (顺时针，使用 negative delta angle 实现)
-    % 从左下方 (225:0.4) 顺时针画 $90^\circ$ 到左上方 (135:0.4)
     \draw[->] ($(BodyCenter) + (225:0.4)$) node[below left=1pt] {$T_{bl}$} arc[start angle=225, delta angle=-90, radius=0.4];
 
     % --- 尺寸标注 ---
@@ -156,7 +154,7 @@
 
 \end{tikzpicture}
 
-\subsection{变量（标有*号的为独立变量）}
+\section{变量定义}
 
 \renewcommand{\arraystretch}{1.3}
 \begin{longtable}{>{\centering\arraybackslash}p{0.28\textwidth} >{\centering\arraybackslash}p{0.48\textwidth} >{\centering\arraybackslash}p{0.20\textwidth}}
@@ -182,7 +180,7 @@
     $\theta_{w,i}$ $(i=l,r)$ & 驱动轮转角 & 自然坐标系法向 \\
     $\theta_{l,i}$ $(i=l,r)$ & 腿倾斜角 & 自然坐标系法向 \\
     $\theta_b$ & 机体倾斜角 & 自然坐标系法向 \\
-    $\phi$ & 偏航角 & yaw \\
+    $\phi$ & 偏航角 &  \\
     $s$ & 自然坐标系下机器人水平方向移动距离 &  \\
     $s_b$ & 自然坐标系下机体质心水平方向移动距离 &  \\
     $h_b$ & 自然坐标系下机体质心竖直方向移动距离 &  \\
@@ -354,14 +352,224 @@ F_{wh,l} = F_{wh,r} \tag{3.10}
 
 本节建立轮腿机构的位置与速度映射关系，为后续控制器设计提供基础。
 
+\section{方程化简求解}
+由于运动学与动力学方程繁多且复杂，直接化简求解较为困难，故采用python脚本进行化简求解。
+\begin{minted}[breaklines,linenos,fontsize=\small]{Python}
+import sympy as sp
+
+# ---------------------------
+# 0) 符号
+# ---------------------------
+R_w, R_l = sp.symbols('R_w R_l', positive=True)
+m_w, m_l, m_b, g = sp.symbols('m_w m_l m_b g')
+I_w, I_b, I_z = sp.symbols('I_w I_b I_z')
+# 左/右腿的几何分解：l_l = l_bl + l_wl,  l_r = l_br + l_wr
+l_bl, l_br, l_wl, l_wr, l_c = sp.symbols('l_bl l_br l_wl l_wr l_c')
+l_l, l_r = sp.symbols('l_l l_r')
+
+# 轮角速度/加速度、腿角速度/加速度、机体
+ddtheta_wl, ddtheta_wr = sp.symbols('ddtheta_wl ddtheta_wr')
+ddtheta_ll, ddtheta_lr = sp.symbols('ddtheta_ll ddtheta_lr')
+theta_ll, theta_lr, theta_b = sp.symbols('theta_ll theta_lr theta_b')  # 小角线性
+ddphi = sp.symbols('ddphi')  # 偏航角加速度
+
+# 轮/腿/机体力、力矩
+f_l, f_r = sp.symbols('f_l f_r')                      # 轮-地切向力
+F_wsl, F_bsl, F_wsr, F_bsr = sp.symbols('F_wsl F_bsl F_wsr F_bsr')  # 水平支撑/传递
+F_whl, F_bhl, F_whr, F_bhr = sp.symbols('F_whl F_bhl F_whr F_bhr')  # 竖直支撑/传递
+T_lwl, T_lwr, T_bll, T_blr = sp.symbols('T_lwl T_lwr T_bll T_blr')  # 轮/腿扭矩
+
+# 线速度/加速度（来自 2.x 运动学）
+dds, dds_b, dds_ll, dds_lr = sp.symbols('dds dds_b dds_ll dds_lr')
+ddh_b, ddh_ll, ddh_lr = sp.symbols('ddh_b ddh_ll ddh_lr')
+
+# ---------------------------
+# 1) 原始 2.x 运动学（线性化）
+# ---------------------------
+# (2.9) + (2.13)
+eq_dds   = sp.Eq(dds,   R_w/2*(ddtheta_wl + ddtheta_wr))
+eq_ddsb  = sp.Eq(dds_b, R_w/2*(ddtheta_wl + ddtheta_wr) + (l_bl+l_wl)/2*ddtheta_ll + (l_br+l_wr)/2*ddtheta_lr)
+
+# (2.18)-(2.19) & (2.22)-(2.23) 线性化（去掉 θ*dθ^2 等二阶项）
+eq_ddsll = sp.Eq(dds_ll, R_w*ddtheta_wl + l_wl*ddtheta_ll)
+eq_ddslr = sp.Eq(dds_lr, R_w*ddtheta_wr + l_wr*ddtheta_lr)
+eq_ddhll = sp.Eq(ddh_ll, ddh_b + theta_ll*ddtheta_ll)   # 小角线性
+eq_ddhlr = sp.Eq(ddh_lr, ddh_b + theta_lr*ddtheta_lr)   # 小角线性
+
+# 偏航（2.11，线性化）
+eq_ddphi = sp.Eq(ddphi, R_w/(2*R_l)*(-ddtheta_wl + ddtheta_wr) - (l_bl+l_wl)/(2*R_l)*ddtheta_ll + (l_br+l_wr)/(2*R_l)*ddtheta_lr)
+
+# ---------------------------
+# 2) 原始 3.x 动力学
+# ---------------------------
+# 轮的切向力与转动方程 (3.1)-(3.2)+(3.3)-(3.4)
+eq_wl_lin = sp.Eq(m_w*R_w*ddtheta_wl, f_l - F_wsl)
+eq_wr_lin = sp.Eq(m_w*R_w*ddtheta_wr, f_r - F_wsr)
+eq_Twl    = sp.Eq(I_w*ddtheta_wl, T_lwl - f_l*R_w)
+eq_Twr    = sp.Eq(I_w*ddtheta_wr, T_lwr - f_r*R_w)
+
+# 腿的水平/竖直传递 (3.3)-(3.5)
+eq_legL_h = sp.Eq(m_l*dds_ll, F_wsl - F_bsl)
+eq_legR_h = sp.Eq(m_l*dds_lr, F_wsr - F_bsr)
+eq_legL_v = sp.Eq(m_l*ddh_ll, F_whl - F_bhl - m_l*g)
+eq_legR_v = sp.Eq(m_l*ddh_lr, F_whr - F_bhr - m_l*g)
+
+# 机体平动 (3.6)-(3.7)
+eq_body_s = sp.Eq(m_b*dds_b, F_bsl + F_bsr)
+eq_body_h = sp.Eq(m_b*ddh_b, F_bhl + F_bhr - m_b*g)
+
+# 机体俯仰 (3.8)
+eq_pitch  = sp.Eq(I_b*sp.symbols('ddtheta_b'),
+                  -(T_bll+T_blr) + (F_bsl+F_bsr)*l_c + (F_bhl+F_bhr)*l_c*theta_b)
+
+# 偏航 (3.9)
+eq_yaw = sp.Eq(I_z*ddphi, (-f_l + f_r)*R_l)
+
+# ---------------------------
+# 3) 消元：先用轮的方程把 f_l, f_r, F_wsl, F_wsr 表成 ddθ 和 T
+# ---------------------------
+sol_wl = sp.solve([eq_wl_lin, eq_Twl], (f_l, F_wsl), dict=True)[0]
+sol_wr = sp.solve([eq_wr_lin, eq_Twr], (f_r, F_wsr), dict=True)[0]
+# f_l = (T_lwl - I_w ddθ_wl)/R_w,  F_wsl = f_l - m_w R_w ddθ_wl
+# 同理右侧
+
+# ---------------------------
+# 4) 用腿的水平式，把 F_bsl/F_bsr 表成 ddθ 与 T
+# ---------------------------
+# 先把 dds_ll, dds_lr 用运动学替换
+dds_ll_lin = eq_ddsll.rhs
+dds_lr_lin = eq_ddslr.rhs
+eq_legL_h_lin = eq_legL_h.subs({dds_ll: dds_ll_lin}).subs(sol_wl)
+eq_legR_h_lin = eq_legR_h.subs({dds_lr: dds_lr_lin}).subs(sol_wr)
+print(eq_legR_h_lin)
+
+# 解出 F_bsl, F_bsr
+sol_Fb_h = sp.solve([eq_legL_h_lin, eq_legR_h_lin], (F_bsl, F_bsr), dict=True)[0]
+
+# ---------------------------
+# 5) (3.13)：把 eq_body_s 代入并用 (2.13) 代替 dds_b，然后整理
+# ---------------------------
+expr_313 = (eq_body_s.lhs - eq_body_s.rhs) \
+    .subs(sol_Fb_h) \
+    .subs({dds_b: eq_ddsb.rhs}) \
+    .doit()
+
+# 规范化：收集 [ddθ_wl, ddθ_wr, ddθ_ll, ddθ_lr, T_lwl, T_lwr]
+expr_313 = sp.expand(expr_313)
+expr_313 = sp.collect(expr_313, [ddtheta_wl, ddtheta_wr, ddtheta_ll, ddtheta_lr, T_lwl, T_lwr])
+
+expr_313 = expr_313.xreplace({l_l: l_bl + l_wl, l_r: l_br + l_wr})
+eq_313 = sp.Eq(sp.simplify(-expr_313), 0)  
+
+# ---------------------------
+# 6) (3.14)：俯仰
+sum_Fb_s = sp.simplify(sol_Fb_h[F_bsl] + sol_Fb_h[F_bsr])
+sum_Fb_h = (eq_body_h.lhs + m_b*g)
+
+eq_pitch_sub = eq_pitch.subs({
+    (F_bsl+F_bsr): sum_Fb_s,      
+    (F_bhl+F_bhr): sum_Fb_h
+})
+
+eq_pitch_sub = eq_pitch_sub.subs({dds_b: eq_ddsb.rhs, ddh_b: 0})
+
+expr_314 = sp.expand(eq_pitch_sub.lhs - eq_pitch_sub.rhs)
+expr_314 = sp.collect(expr_314, [ddtheta_wl, ddtheta_wr, ddtheta_ll, ddtheta_lr,
+                                 sp.symbols('ddtheta_b'), theta_b, T_lwl, T_lwr, T_bll, T_blr])
+expr_314 = expr_314.xreplace({l_l: l_bl + l_wl, l_r: l_br + l_wr})
+
+eq_314 = sp.Eq(sp.simplify(expr_314), 0)
+
+# ---------------------------
+# 7) (3.15)：偏航。先用 (2.11) 线性化的 ddphi，再用轮-力矩关系替换 f_l,f_r
+# ---------------------------
+expr_yaw_rhs = ((-sol_wl[f_l] + sol_wr[f_r]) * R_l)  # RHS of yaw
+expr_yaw_lhs = (I_z * eq_ddphi.rhs)                  # LHS of yaw
+
+expr_315 = sp.expand(expr_yaw_lhs - expr_yaw_rhs)
+expr_315 = sp.collect(expr_315, [ddtheta_wl, ddtheta_wr, ddtheta_ll, ddtheta_lr, T_lwl, T_lwr])
+expr_315 = expr_315.xreplace({l_l: l_bl + l_wl, l_r: l_br + l_wr})
+
+eq_315 = sp.Eq(sp.simplify(expr_315), 0)
+
+
+# ---------------------------
+# 8) 打印结果
+# ---------------------------
+print("\n=== (3.13) 自动消元/线性化 ===")
+sp.pretty_print(eq_313)
+
+print("\n=== (3.14) 自动消元/线性化 ===")
+sp.pretty_print(eq_314)
+
+print("\n=== (3.15) 自动消元/线性化 ===")
+sp.pretty_print(eq_315)
+
+def coef(expr, sym):
+    return sp.simplify(sp.diff(expr, sym))
+\end{minted}
+
+化简得
+% 方程 (3.13)
+\begin{equation}
+\resizebox{0.98\linewidth}{!}{$
+\frac{-R_w \left[ \ddot{\theta}_{l,l} (l_{bl} m_b + l_{wl} m_b + 2l_{wl} m_l) + \ddot{\theta}_{l,r} (l_{br} m_b + l_{wr} m_b + 2l_{wr} m_l) \right] + 2T_{lwl} + 2T_{lwr} - (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) \left[ 2I_w + R_w^2 (m_b + 2m_l + 2m_w) \right]}{2R_w} = 0
+$}
+\label{eq:x_y_move}
+\end{equation}
+
+% 方程 (3.14)
+\begin{equation}
+\resizebox{0.98\linewidth}{!}{$
+\frac{R_w \left( I_b \ddot{\theta}_b + T_{bll} + T_{blr} + \ddot{\theta}_{l,l} l_c l_{wl} m_l + \ddot{\theta}_{l,r} l_c l_{wr} m_l - g l_c m_b \theta_b \right) - (T_{lwl} + T_{lwr}) l_c + (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) l_c \left[ I_w + R_w^2 (m_l + m_w) \right]}{R_w} = 0
+$}
+\label{eq:pitch_move}
+\end{equation}
+
+% 方程 (3.15)
+\begin{equation}
+\resizebox{0.98\linewidth}{!}{$
+\frac{I_z R_w \left[ -\ddot{\theta}_{l,l}(l_{bl} + l_{wl}) + \ddot{\theta}_{l,r}(l_{br} + l_{wr}) \right] + 2R_l^2 (T_{lwl} - T_{lwr}) + (\ddot{\theta}_{wr} - \ddot{\theta}_{wl}) (2I_w R_l^2 + I_z R_w^2)}{2R_l R_w} = 0
+$}
+\label{eq:yaw_move}
+\end{equation}
+
+这三个方程分别从系统的平动、俯仰和偏航三个自由度出发，揭示了轮足机器人在复杂动力学耦合下的运动规律，为后续的控制器设计提供了理论基础。以下将对每个方程的物理意义进行详细解析。
+
+\subsection{纵向平移运动学平衡方程(方程\ref{eq:x_y_move})}
+
+本节构建了轮足机器人在纵向（$x$轴方向）的平移加速度与驱动力矩之间的映射关系。根据达朗贝尔原理（D'Alembert's Principle），系统在前进方向上的广义力平衡方程可表述为：$$\sum F_x = M_{eq} \cdot a_x + F_{coupling}$$
+
+等效质量与转动惯量折算：方程 (3.13) 中的系数项 $2I_w + R_{w}^{2}(m_b + 2m_l + 2m_w)$ 反映了系统的等效平移惯量。其中不仅包含机体、腿部及轮组的静质量，还通过轮径 $R_w$ 将驱动轮的转动惯量 $I_w$ 折算至线加速度维度。这体现了系统在平移过程中，能量在平动动能与转动动能之间的耦合分布。
+
+腿部运动耦合（Dynamic Coupling）：项 $\ddot{\theta}_{l,l}$ 与 $\ddot{\theta}_{l,r}$ 的系数代表了腿部摆动产生的惯性力对底盘平移的影响。当腿部角度发生剧烈变化时，其质心位置的水平加速度会通过关节反作用力直接作用于底盘。
+
+驱动输入：$2T_{lw}$ 为系统的主动控制量，代表左右电机在接触点产生的等效牵引力。
+
+\subsection{俯仰轴动力学平衡方程(方程\ref{eq:pitch_move})}
+
+俯仰方向的稳定性是轮足机器人平衡控制的核心，该方程本质上是一个线性化后的倒立摆模型（Inverted Pendulum Model）。
+
+姿态动力学项：$I_b \ddot{\theta}_b$ 描述了机体绕其质心的旋转惯性。
+
+不稳定重力矩（Gravity-induced Moment）：$-g l_c m_b \theta_b$ 项具有正反馈特性，代表了重力在机体偏离平衡位置时产生的倾覆力矩。在线性化分析中，该项决定了系统的开环不稳定性，是控制器设计时需要补偿的主要干扰。
+
+位移-姿态耦合项：$\ddot{\theta}_{w}$ 项的引入体现了“加速度诱导力矩”效应。当底盘产生水平加速度时，由于机体质心与轮轴存在高度差 $l_c$，会在俯仰方向产生显著的惯性耦合力矩。这也是实现“以位移保平衡”控制策略的物理基础。
+
+\subsection{偏航轴动力学平衡方程(方程\ref{eq:yaw_move})}
+
+偏航（Yaw）方程描述了机器人 heading 角的演化逻辑，主要涉及空间动力学的角动量守恒与差速驱动原理。
+
+偏航惯量矩阵：系数 $2I_w R_{l}^{2} + I_z R_{w}^{2}$ 定义了系统绕几何中心转动的总等效惯量。它综合考虑了机体绕 $Z$ 轴的转动惯量 $I_z$ 以及左右轮组在差速转动时的旋转动量。
+
+差速驱动逻辑：该方程的核心输入为 $(T_{lw,l} - T_{lw,r})$。通过建立电机力矩差与偏航加速度 $\ddot{\psi}$ 的线性关系，将复杂的地面摩擦力约束简化为由力矩差驱动的二阶系统，简化了偏航控制器的解耦设计。
+
+非对称干扰补偿：腿部伸缩或摆动加速度的非对称性（$\ddot{\theta}_{l,r} - \ddot{\theta}_{l,l}$）会导致偏航干扰。方程中对应的系数项为控制算法提供了前馈补偿的理论依据，以确保机器人在高速直线行驶中不发生偏离。
+
 \section{五连杆运动学模型与VMC}
 
 \subsection{五连杆运动学解算}
 
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.5\textwidth]{figures/five_bar.png}
-%   \caption{五连杆构型图解简化}
 \begin{figure}[H]
   \centering
   \begin{tikzpicture}[scale=1.2, >=stealth]
@@ -522,24 +730,10 @@ F_{wh,l} = F_{wh,r} \tag{3.10}
     \coordinate (C) at (2.2, 3.3);
 
     % 2. 计算交点 N
-    % N 是直线 AB 与 直线 BC/CD 延伸方向的交点？ 
-    % 观察原图，N 似乎是 AF 与 BC 的交点。我们先定义 F。
-    
-    % 3. 根据几何约束确定 F 和 E
-    % 约束 A: F 在 DE 上 (延长线上)
-    % 约束 B: CE // AF
-    % 约束 C: BC // DE
-    
-    % 定义辅助方向：DE 的方向即 BC 的方向（因为 BC // DE）
-    % 我们让 D, B, C 并不完全共线，但 DE 必须平行于 BC
-    \coordinate (F) at ($(D)!0.7!(A)$); % 假设 F 在 AD 连线上或附近，这里根据原图目测
-    % 重新调整 F 的位置以符合原图视觉：F 在 A 延伸出的某条线上
+    \coordinate (F) at ($(D)!0.7!(A)$); 
     \coordinate (F) at (2.7, 1.5);
     
-    % 根据 BC // DE，确定过 D 的直线方向
-    % 根据 CE // AF，确定 E 的位置
-    % 这里我们手动微调坐标以达到视觉平行，或者使用计算：
-    \coordinate (E) at ($(C) + (F) - (A)$); % 这是一个向量平移，确保矢量 CE = AF，从而平行且相等
+    \coordinate (E) at ($(C) + (F) - (A)$); 
     
     % 4. 计算 N 点 (AF 与 BC 的交点)
     \coordinate (N) at (intersection of A--F and B--C);
@@ -559,11 +753,6 @@ F_{wh,l} = F_{wh,r} \tag{3.10}
     \node [right] at (F) {F};
     \node [right] at (D) {D};
     \node [left] at (N) {N};
-
-    % 7. 验证平行（可选：画出辅助虚线或打印斜率）
-    % BC // DE 验证：
-    % \draw[red, dashed] (B) -- (C);
-    % \draw[red, dashed] (D) -- (E是算出来的，方向由BC决定);
 
 \end{tikzpicture}
 \caption{并联腿机构简图}
