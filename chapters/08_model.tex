@@ -2,13 +2,274 @@
 
 电缆机器人最终采取串联五连杆轮腿构型。为了实现对电缆机器人运动学和动力学的分析与控制，首先需要建立其结构模型和动力学模型。本章介绍电缆机器人的建模方法，包括坐标系定义、运动学分析和动力学推导。
 
+% 设置视角: 
+\tdplotsetmaincoords{70}{50} 
+\begin{tikzpicture}[tdplot_main_coords, font=\footnotesize, >=latex]
+
+% 1. 机器人坐标系 (在地面) 
+% X: 右下, Y: 右上, Z: 上
+\draw[->, thick, red] (0,0,0) -- (1.5,0,0);
+\node[red] at (1.8, -0.4, 0) {机器人系}; 
+\draw[->, thick, green] (0,0,0) -- (0,1.5,0);
+\draw[->, thick, blue] (0,0,0) -- (0,0,1.5);
+
+% 地平面辅助线
+\draw[gray!50, dashed] (-1.5,-2,0) -- (3.5,-2,0) -- (3.5,2,0) -- (-1.5,2,0) -- cycle;
+
+% 2. 轮子中心 (左右轮)
+\coordinate (WL) at (0, 0.8, 0.4);
+\coordinate (WR) at (0, -0.8, 0.4);
+
+% 轮子 (在 Y-Z 平面内绘制，确保与地面相切)
+\begin{scope}[canvas is yz plane at x=0]
+    % 左轮：圆心 (y,z)=(0.8,0.4)，半径 0.4，最低点刚好接触 z=0
+    \draw[thick, fill=white] (0.8, 0.4) circle (0.4);
+    % 右轮：圆心 (y,z)=(-0.8,0.4)，半径 0.4，最低点刚好接触 z=0
+    \draw[thick, fill=white] (-0.8, 0.4) circle (0.4);
+\end{scope}
+
+% 轮子转角指示 (简化显示)
+\node at (0.3, 0.8, 0.8) {$\theta_{wl}$};
+\node at (0.3, -0.8, 0.8) {$\theta_{wr}$};
+
+% 3. 腿
+\coordinate (BodyCenter) at (1.5, 0, 3.2);
+\coordinate (HL) at (1.5, 0.8, 3.2);
+\coordinate (HR) at (1.5, -0.8, 3.2);
+
+\draw[thick] (WL) -- (HL);
+\draw[thick] (WR) -- (HR);
+
+% 左腿倾斜角 theta_ll
+\draw[dashed, thin] (WL) -- ($(WL)+(0,0,2.5)$);
+\draw[->, thin] ($(WL)+(0,0,1.5)$) arc[start angle=90, end angle=55, radius=1.5];
+\node at ($(WL)+(0.4,0,1.8)$) {$\theta_{ll}$};
+
+% 右腿倾斜角 theta_lr
+\draw[dashed, thin] (WR) -- ($(WR)+(0,0,2.5)$);
+\draw[->, thin] ($(WR)+(0,0,1.8)$) arc[start angle=90, end angle=55, radius=1.8];
+\node at ($(WR)+(0.6,0,2.1)$) {$\theta_{lr}$};
+
+% 4. 机体 (Base)
+\begin{scope}[shift={(BodyCenter)}]
+% 长方体
+\draw[thick, fill=white, fill opacity=0.8] (-0.8,-1.2,-0.6) -- (1.2,-1.2,-0.6) -- (1.2,1.2,-0.6) -- (-0.8,1.2,-0.6) -- cycle; % 底面
+\draw[thick] (-0.8,-1.2,-0.6) -- (-0.8,-1.2,0.6);
+\draw[thick] (1.2,-1.2,-0.6) -- (1.2,-1.2,0.6);
+\draw[thick] (1.2,1.2,-0.6) -- (1.2,1.2,0.6);
+\draw[thick] (-0.8,1.2,-0.6) -- (-0.8,1.2,0.6);
+\draw[thick, fill=white, fill opacity=0.8] (-0.8,-1.2,0.6) -- (1.2,-1.2,0.6) -- (1.2,1.2,0.6) -- (-0.8,1.2,0.6) -- cycle; % 顶面
+
+% Base 坐标系
+\draw[->, thick, red] (0,0,0) -- (2.5,0,0) node[anchor=north west]{机体系}; 
+% \draw[->, thick] (2.8, -0.6, 0) -- (3.3, -1.0, 0) node[anchor=west]{$S$}; % 附加箭头S
+\draw[->, thick, green] (0,0,0) -- (0,2.0,0);
+\draw[->, thick, blue] (0,0,0) -- (0,0,2.5);
+
+% theta_b 绕机体系红色轴（x轴）转动的示意弧线
+\begin{scope}[canvas is yz plane at x=0]
+    \draw[->, thick] (0, 1.0) arc[start angle=90, end angle=25, radius=1.0];
+    \node at (0.55, 1.25) {$\theta_b$};
+\end{scope}
+
+% phi 绕 Z 轴偏航角弧线
+\draw[->, thick] (0.2, 0, 2.3) arc[start angle=0, end angle=180, x radius=0.4, y radius=0.15];
+\node at (0.4, 0.4, 2.5) {$\phi$};
+\end{scope}
+
+% 5. 'A' 视角指示
+% \draw[->, thick, font=\LARGE] (-1.0, 3.0, 1.0) -- (0, 2.0, 1.0);
+% \node at (-1.3, 3.2, 1.0) {$A$};
+
+\end{tikzpicture}
+
+\subsection{变量（标有*号的为独立变量）}
+
+\begin{table}[H]
+    \centering
+    \caption{变量定义}\label{tab:variable_definition}
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+        \toprule
+        \textbf{参数} & \textbf{含义} & \textbf{说明} \\
+        \midrule
+        $\theta_{w,i}$ $(i=l,r)$ & 驱动轮转角 & 自然坐标系法向 \\
+        $\theta_{l,i}$ $(i=l,r)$ & 腿倾斜角 & 自然坐标系法向 \\
+        $\theta_b$ & 机体倾斜角 & 自然坐标系法向 \\
+        $\phi$ & 偏航角 & yaw \\
+        $s$ & 自然坐标系下机器人水平方向移动距离 &  \\
+        $s_b$ & 自然坐标系下机体质心水平方向移动距离 &  \\
+        $h_b$ & 自然坐标系下机体质心竖直方向移动距离 &  \\
+        $s_{l,i}$ $(i=l,r)$ & 自然坐标系下腿部质心水平方向移动距离 &  \\
+        $h_{l,i}$ $(i=l,r)$ & 自然坐标系下腿部质心竖直方向移动距离 &  \\
+        $T_{w,i}$ $(i=l,r)$ & 驱动轮转矩 & 腿-轮 \\
+        $T_{b,i}$ $(i=l,r)$ & 腿部转矩 & 机体-腿 \\
+        $f_i$ $(i=l,r)$ & 地面对驱动轮摩擦力 &  \\
+        $F_{ws,i}$ $(i=l,r)$ & 驱动轮对腿水平方向作用力 &  \\
+        $F_{wh,i}$ $(i=l,r)$ & 驱动轮对腿竖直方向作用力 &  \\
+        $F_{bs,i}$ $(i=l,r)$ & 腿对机体水平方向作用力 &  \\
+        $F_{bh,i}$ $(i=l,r)$ & 腿对机体竖直方向作用力 &  \\
+        $R_w$ & 驱动轮半径 &  \\
+        $R_l$ & 驱动轮轮距/2 &  \\
+        $l_i$ $(i=l,r)$ & 腿长 &  \\
+        $l_{w,i}$ $(i=l,r)$ & 驱动轮到腿部质心距离 &  \\
+        $l_{b,i}$ $(i=l,r)$ & 驱动轮到腿部质心距离 &  \\
+        $l_c$ & 机体质心到腿部关节距离 &  \\
+        $m_w$ & 驱动轮质量 &  \\
+        $m_l$ & 腿部质量 &  \\
+        $m_b$ & 机体质量 &  \\
+        $I_w$ & 驱动轮转动惯量（自然坐标系法向） &  \\
+        $I_{l,i}$ $(i=l,r)$ & 腿部转动惯量（自然坐标系法向） &  \\
+        $I_b$ & 机体转动惯量（自然坐标系法向） &  \\
+        $I_z$ & 机器人$z$轴转动惯量 &  \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+*1：实际机器人腿部为五连杆机构，腿长可变，长度由腿部控制器控制，且质心位置、转动惯量均随腿长变化。\\
+*2：绕z轴的转动惯量简化为常量。
+
 \section{运动学模型}
 
-本节建立轮腿机构的位置与速度映射关系，为后续控制器设计提供基础。
+根据变量、参数定义和几何关系得到系统的运动学方程，进而解得各变量的表达式
+
+\begin{equation}
+s = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) \tag{2.1}
+\end{equation}
+
+\begin{equation}
+h_b = \frac{l_l}{2}\cos\theta_{l,l} + \frac{l_r}{2}\cos\theta_{l,r} \tag{2.2}
+\end{equation}
+
+\begin{equation}
+s_{l,i} = R_w\theta_{w,i} + l_{w,i}\sin\theta_{l,i} \tag{2.3}
+\end{equation}
+
+\begin{equation}
+h_{l,i} = h_b - l_{b,i}\cos\theta_{l,i} \tag{2.4}
+\end{equation}
+
+\begin{equation}
+R_w\theta_{w,l} = s_b - R_l\phi - l_l\sin\theta_{l,l} \tag{2.5}
+\end{equation}
+
+\begin{equation}
+R_w\theta_{w,r} = s_b + R_l\phi - l_r\sin\theta_{l,r} \tag{2.6}
+\end{equation}
+
+联立式 (2.5)(2.6)
+
+\begin{equation}
+\phi = \frac{R_w}{2R_l}(-\theta_{w,l} + \theta_{w,r}) - \frac{l_l}{2R_l}\sin\theta_{l,l} + \frac{l_r}{2R_l}\sin\theta_{l,r} \tag{2.7}
+\end{equation}
+
+\begin{equation}
+s_b = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) + \frac{l_l}{2}\sin\theta_{l,l} + \frac{l_r}{2}\sin\theta_{l,r} \tag{2.8}
+\end{equation}
+
+式 (2.1)(2.2)(2.3)(2.4)(2.7)(2.8) 对时间分别求一/二阶导
+
+\begin{equation}
+\dot{s} = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) \tag{2.9}
+\end{equation}
+
+\begin{equation}
+\ddot{s} = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) \tag{2.10}
+\end{equation}
+
+\begin{equation}
+\dot{\phi} = \frac{R_w}{2R_l}(-\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\dot{\theta}_{l,r} \tag{2.11}
+\end{equation}
+
+\begin{equation}
+\ddot{\phi} = \frac{R_w}{2R_l}(-\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\ddot{\theta}_{l,r} + \frac{l_l}{2R_l}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2R_l}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.12}
+\end{equation}
+
+\begin{equation}
+\dot{s}_b = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r} \tag{2.13}
+\end{equation}
+
+\begin{equation}
+\ddot{s}_b = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.14}
+\end{equation}
+
+\begin{equation}
+\dot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r} \tag{2.15}
+\end{equation}
+
+\begin{equation}
+\ddot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\ddot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.16}
+\end{equation}
+
+\begin{equation}
+\dot{s}_{l,i} = R_w\dot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\dot{\theta}_{l,i} \tag{2.17}
+\end{equation}
+
+\begin{equation}
+\ddot{s}_{l,i} = R_w\ddot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\ddot{\theta}_{l,i} - l_{w,i}\sin\theta_{l,i}\dot{\theta}_{l,i}^2 \tag{2.18}
+\end{equation}
+
+\begin{equation}
+\dot{h}_{l,i} = \dot{h}_b + l_{b,i}\sin\theta_{l,i}\dot{\theta}_{l,i} \tag{2.19}
+\end{equation}
+
+\begin{equation}
+\ddot{h}_{l,i} = \ddot{h}_b + l_{b,i}\sin\theta_{l,i}\ddot{\theta}_{l,i} + l_{b,i}\cos\theta_{l,i}\dot{\theta}_{l,i}^2 \tag{2.20}
+\end{equation}
 
 \section{动力学模型}
 
 本节基于拉格朗日法建立系统动力学方程，并给出关节力矩与广义坐标之间的关系。
+
+使用牛顿欧拉法建立系统的动力学方程
+
+对于左右驱动轮（$i = l, r$）
+\begin{equation}
+m_w R_w \ddot{\theta}_{w,i} = f_i - F_{ws,i} \tag{3.1}
+\end{equation}
+
+\begin{equation}
+I_w \ddot{\theta}_{w,i} = T_{w,i} - f_i R_w \tag{3.2}
+\end{equation}
+
+对于左右腿（$i = l, r$）
+\begin{equation}
+m_l \ddot{s}_{l,i} = F_{ws,i} - F_{bs,i} \tag{3.3}
+\end{equation}
+
+\begin{equation}
+m_l \ddot{h}_{l,i} = F_{wh,i} - F_{bh,i} - m_l g \tag{3.4}
+\end{equation}
+
+\begin{equation}
+I_{l,i} \ddot{\theta}_{l,i} = (F_{wh,i} l_{w,i} + F_{bh,i} l_{b,i}) \sin\theta_{l,i} - (F_{ws,i} l_{w,i} + F_{bs,i} l_{b,i}) \cos\theta_{l,i} - T_{w,i} + T_{b,i} \tag{3.5}
+\end{equation}
+
+对于机体
+\begin{equation}
+m_b \ddot{s}_b = F_{bs,l} + F_{bs,r} \tag{3.6}
+\end{equation}
+
+\begin{equation}
+m_b \ddot{h}_b = F_{bh,l} + F_{bh,r} - m_b g \tag{3.7}
+\end{equation}
+
+\begin{equation}
+I_b \ddot{\theta}_b = -(T_{b,l} + T_{b,r}) - (F_{bs,l} + F_{bs,r}) l_c \cos\theta_b + (F_{bh,l} + F_{bh,r}) l_c \sin\theta_b \tag{3.8}
+\end{equation}
+
+机器人整体偏航（yaw）方向旋转
+\begin{equation}
+I_z \ddot{\phi} = (-f_l + f_r) R_l \tag{3.9}
+\end{equation}
+
+左右腿支持力相等
+\begin{equation}
+F_{wh,l} = F_{wh,r} \tag{3.10}
+\end{equation}
+
+本节建立轮腿机构的位置与速度映射关系，为后续控制器设计提供基础。
+
 \section{五连杆运动学模型与VMC}
 
 \subsection{五连杆运动学解算}
@@ -164,263 +425,6 @@
 \end{equation}
 
 通过上述关系，可以将电机角度 $\phi_1$、$\phi_4$ 映射到足端位置 $P(x_p, z_p)$，实现对足端位置的控制。
-
-% \begin{figure}[htbp]
-%     \centering
-%     \begin{tikzpicture}[thick, scale=1.3]
-%         % 1. 定义控制点 (基于新几何约束精确计算比例)
-%         \coordinate (A) at (0, 0);
-%         \coordinate (M) at (-1.8, -1.5);
-%         \coordinate (D) at (1.8, -6.5); % 足端点，方向固定
-
-%         % 约束：A, B, D 共线
-%         \coordinate (B) at ($(A)!0.538!(D)$); % 计算 B 点位置，使其在 AD 上
-
-%         % 约束：C点由输入角 beta 决定，假设 AC 为 l4
-%         \coordinate (C) at (1.4, -1.8); % 大腿连杆 C
-
-%         % 约束：CE || AF。这里 AF 是 A 连向某个延长线点的直线。
-%         % 计算向量 AC 延长线方向
-%         \coordinate (AF_dir) at ($(A)!3!(C)$); % F在AN延长线上，简化为F在AC延长线上
-%         % 假设电机的延长线部分为 AF
-
-%         % 计算 E 点：满足 BC || DE，且满足几何结构
-%         % BC 向量
-%         \path let \p1=($(C)-(B)$) in \pgfextra{\gdef\BCvec{(\x1,\y1)}};
-%         % 我们需要 DE 向量平行于 BC 向量。设定 E点
-%         \coordinate (E) at ($(D)+(C)-(B)$); % 这自动满足 BC || DE (平行四边形特征)
-
-%         % 计算 F 点：满足 F 在 DE 中点。
-%         % 计算 DE 中点
-%         \coordinate (F_const) at ($(D)!0.5!(E)$);
-%         % 这里发现了一个几何矛盾：如果F在DE中点，且BC||DE，
-%         % A,B,D共线与A,C,F共线很难同时精确成立，除非是一个特定的几何构型。
-%         % 为了满足“F在DE中点”这一极强约束，我调整A,B,D相对于A,C的方向。
-        
-%         % 这里提供一个近似滿足所有约束（视觉上共线且F在中点）的解
-%         \coordinate (A) at (0, 0);
-%         \coordinate (M) at (-1.8, -1.5);
-%         \coordinate (C) at (1.5, -1.6);
-%         \coordinate (D) at (1.6, -6.0);
-        
-%         \coordinate (B) at ($(A)!0.5!(D)$);
-%         \path[name path=AC] (A) -- ($(A)!3!(C)$);
-%         \path[name path=ME] (M) -- ($(M)!3!(B)$); % 简化结构，假设MB延伸
-%         % BDE 区域
-%         \coordinate (E) at (2.8, -5.0);
-%         \coordinate (F) at ($(D)!0.5!(E)$); % 精确中点
-
-%         % 满足 F 在 AN(AC) 延长线上且 F在DE中点
-%         % 这需要计算，为了示意图清晰，我微调D,C,E
-%         \coordinate (D_calc) at (1.8, -6.5);
-%         \coordinate (C_calc) at (1.4, -1.8);
-%         \coordinate (E_calc) at (2.9, -5.0);
-%         \coordinate (B_calc) at ($(A)!0.53!(D_calc)$);
-        
-%         \coordinate (A) at (0, 0);
-%         \coordinate (M) at (-1.8, -1.5);
-%         \coordinate (C) at (1.5, -1.8);
-%         \coordinate (B) at (0.8, -3.2); % 计算出共线的B
-%         \coordinate (D) at (1.6, -6.5); % 计算出共线的D
-%         \coordinate (E) at (2.9, -5.1);
-        
-%         % \path[name path=line_AC] (A) -- ($(A)!3!(C)$);
-%         % \path[name path=line_DE] (D) -- (E);
-        
-%         % 计算 F 点：AN延长线与 DE 的交点
-%         % \path[name intersections={of=line_AC and line_DE, by=F}];
-%         \coordinate (F) at ($(D)!0.5!(E)$);
-        
-%         % 检查：F 是 DE 中点吗？这通常是个矛盾。如果用户坚持，
-%         % 示意图中我将在 F 点和 D、E 两段加上中点标记（双斜线）。
-%         % 实际上，BC||DE且AF||CE且A,B,D共线往往决定了F的位置。
-
-%         % 下面是视觉上满足所有共线、中点、平行约束的近似解代码（最适合示意）
-
-%         \coordinate (A) at (0, 0);
-%         \coordinate (M) at (-1.8, -1.5);
-%         \coordinate (B) at (0.3, -3.0);  % A,B,D 共线
-%         \coordinate (N) at (0.8, -1.5);  % 这里假设N在AC延长线上，且与ME相交
-%         \coordinate (C) at (1.5, -1.8);
-%         \coordinate (D) at (1.5, -6.5); % 足端方向
-%         \coordinate (E) at (2.8, -5.2);
-        
-%         % 约束：A, B, D 共线
-%         \draw[dashed, gray!80] (A) -- (D) node[midway, sloped, above, black, pos=0.25] {$AD$};
-%         \coordinate (B) at ($(A)!0.46!(D)$); 
-
-%         % 约束：C 由 beta 决定
-%         \path (A) ++(-50:2.0) coordinate (C);
-
-%         % 约束：AF || CE。F 在 AN 延长线上。
-%         % 我们将 N 作为 A 到 F 之间的延长点，例如电机连杆 l4。
-%         % 计算方向
-%         \path (A) ++(310:1.3) coordinate (N_motor); % 电机杆
-
-%         % 计算 E 点：满足 BC || DE。设定 E
-%         \coordinate (E) at (2.9, -5.2); % 满足示意
-
-%         % 计算 F 点：满足 F 在 ANF 延长线上，且 F 是 DE 的中点。
-%         % 我们强制计算中点为 F
-%         \coordinate (F) at ($(D)!0.5!(E)$); 
-
-%         % 检查约束：ANF 共线？在示意图中，我们使 A, C, F 共线，
-%         % 假设 AN 就是这一支链驱动杆件 AC。A,C,F 共线
-%         \path[name path=line_AF] (A) -- ($(A)!3!(F)$); % 强制 A,C,F 共线
-%         \path[name path=line_DE] (D) -- (E);
-%         % C点将在此线段上
-
-%         % 修正坐标以完美示意：
-%         \coordinate (A) at (0, 0);
-%         \coordinate (M) at (-1.8, -1.5);
-%         \coordinate (D) at (1.6, -6.5);
-%         \coordinate (B) at ($(A)!0.5!(D)$); % A,B,D 共线
-%         \coordinate (E) at (2.9, -5.1);
-%         \coordinate (F) at ($(D)!0.5!(E)$); % F在DE中点
-%         % 计算C点：满足 C在AF上，且满足BC||DE。这通常矛盾。
-%         % 示意图通常不能满足所有约束。我选择强制 F在中点 且 A,B,D 共线。
-%         \coordinate (C) at ($(B)+(1.1,1.1)$); % 满足示意BC||DE
-
-%         % 2. 绘制辅助线 (虚线仅限 AD)
-%         \draw[dashed, gray!80] (A) -- (D) node[midway, sloped, above, black] {$AD$};
-%         \draw[dashed, ultra thin, gray] (A) -- ($(A)!3!(F)$); % AC(AN)延长线
-
-%         % 3. 绘制实体杆件 (实线)
-%         % 主支链 (串联连杆)
-%         \draw[line width=1.5pt] (A) -- (M) node[midway, above left] {$l_1$};
-%         \draw[line width=1.5pt] (M) -- (B) node[midway, below left] {$l_2$};
-        
-%         % BDE 平行区域 (满足 BC || DE，F在中点)
-%         \draw[line width=1.5pt] (B) -- (C); % BC 杆
-%         \draw[line width=1.5pt] (C) -- (E); % CE 杆
-%         \draw[line width=1.5pt] (D) -- (E); % DE 杆
-
-%         % 右侧关联结构 (ANF共线)
-%         \draw[line width=1.5pt] (A) -- (F) node[midway, right=1pt, black] {$l_4$}; % A,C,F共线
-
-%         % 4. 标注平行约束 (可选，用小箭头表示)
-%         % BC || DE
-%         \draw[blue, thick, ->] (1.0, -2.5) -- (1.1, -2.65);
-%         \draw[blue, thick, ->] (2.3, -5.8) -- (2.4, -5.95);
-%         % AF || CE
-%         \draw[red, thick, ->>] (1.3, -1.3) -- (1.4, -1.45);
-%         \draw[red, thick, ->>] (2.2, -4.1) -- (2.3, -4.25);
-
-%         % 5. 标注中点约束 F 在 DE 中点
-%         \draw[gray, thin] (F) ++(-0.1, 0.1) -- ++(0.2, -0.2); % 双斜线标注
-%         \draw[gray, thin] (F) ++(-0.1, 0.05) -- ++(0.2, -0.25);
-%         \draw[gray, thin] ($(D)!0.5!(F)$) ++(-0.1, 0.1) -- ++(0.2, -0.2);
-%         \draw[gray, thin] ($(D)!0.5!(F)$) ++(-0.1, 0.05) -- ++(0.2, -0.25);
-%         \draw[gray, thin] ($(E)!0.5!(F)$) ++(-0.1, 0.1) -- ++(0.2, -0.2);
-%         \draw[gray, thin] ($(E)!0.5!(F)$) ++(-0.1, 0.05) -- ++(0.2, -0.25);
-
-%         % 6. 保留上一张图的角度信息 (标注在 A 点和 M 点)
-%         % 顶点角度 alpha, beta (相对于垂直方向)
-%         % 这里我假设垂直中轴线是 AN 所在直线。
-%         \draw[thin, ->] (0, -0.7) arc[start angle=270, end angle=220, radius=0.7];
-%         \node at (-0.3, -0.9) {$\alpha$};
-%         \draw[thin, ->] (0, -0.5) arc[start angle=270, end angle=315, radius=0.5];
-%         \node at (0.3, -0.7) {$\beta$};
-
-%         % 连杆角 theta_1 (标注在 M 点，相对于水平方向)
-%         \coordinate (RefM) at ($(M)-(0.8,0)$);
-%         \draw[thin, ->] (M) ++(-0.6, 0) arc[start angle=180, end angle=220, radius=0.6];
-%         \node at ([shift={(-0.8,-0.3)}]M) {$\theta_1$};
-
-%         % 7. 绘制节点及标签
-%         \filldraw[fill=white] (A) circle (2.5pt) node[above] {$A$};
-%         \filldraw[fill=white] (M) circle (2pt) node[left] {$M$};
-%         \filldraw[fill=white] (B) circle (2pt) node[left] {$B$};
-%         \filldraw[fill=white] (C) circle (2pt) node[right=4pt] {$C$};
-%         \filldraw[fill=white] (E) circle (2pt) node[right] {$E$};
-%         \filldraw[fill=black] (D) circle (1.5pt) node[below] {$D$};
-%         \filldraw[fill=black] (F) circle (1.5pt) node[below right, black] {$F$};
-
-%     \end{tikzpicture}
-%     \caption{具有平行四边形同步特征的串联腿机构简图}
-%     \label{fig:serial_leg_model}
-% \end{figure}
-
-% 请确保导言区包含：
-% \usepackage{tikz}
-% \usetikzlibrary{calc, angles, quotes, intersections}
-
-% \begin{figure}[htbp]
-%     \centering
-%     \begin{tikzpicture}[thick, scale=1.4]
-%         % 1. 定义核心控制点
-%         \coordinate (A) at (0, 0);
-%         \coordinate (M) at (-1.6, -1.3);
-%         \coordinate (D) at (1.5, -6.0); 
-
-%         % 核心比例约束：AB : BD = 3 : 2
-%         % 计算点 B，使其位于 AD 线段上，AB占60%，BD占40%
-%         \coordinate (B) at ($(A)!0.6!(D)$); 
-        
-%         % 定义 E 点位置
-%         \coordinate (E) at (2.8, -4.8);
-%         % 约束：F 是 DE 的中点
-%         \coordinate (F) at ($(D)!0.5!(E)$); 
-
-%         % 约束：C 点位置需满足 BC || DE
-%         \coordinate (C) at ($(B) + (E) - (D)$);
-
-%         % 2. 绘制辅助线 (仅 AD 为虚线)
-%         \draw[dashed, gray!80] (A) -- (D) node[midway, sloped, above, black, pos=0.3] {$AD$};
-%         % 绘制 ANF 所在的共线参考线
-%         \draw[dashed, ultra thin, gray] (A) -- ($(A)!1.5!(F)$);
-
-%         % 3. 绘制实体杆件 (实线)
-%         % 主支链 (A-M-B)
-%         \draw[line width=1.5pt] (A) -- (M) node[midway, above left] {$l_1$};
-%         \draw[line width=1.5pt] (M) -- (B) node[midway, left] {$l_2$};
-        
-%         % 平行四边形特征区域 (BCDE)
-%         \draw[line width=1.5pt, name path=path_BC] (B) -- (C); 
-%         \draw[line width=1.5pt, name path=path_CE] (C) -- (E);
-%         \draw[line width=1.5pt] (D) -- (E);
-%         \draw[line width=1.5pt] (B) -- (D); % BD 连杆
-
-%         % 驱动/关联杆件 AF (A, N, F 共线)
-%         \draw[line width=1.5pt, name path=path_AF] (A) -- (F) node[midway, right=2pt] {$l_4$};
-
-%         % 4. 计算并标注关键交点 N (AF 与 BC 的交点)
-%         \path[name intersections={of=path_AF and path_BC, by=N}];
-%         \filldraw[fill=black] (N) circle (1.2pt) node[above right=-2pt, scale=0.8] {$N$};
-
-%         % 5. 验证与标注平行特征
-%         % BC || DE
-%         \draw[blue, thick, ->] ($(B)!0.6!(C)$)+(0.05,0.05) -- ++(0.15, -0.1);
-%         \draw[blue, thick, ->] ($(D)!0.6!(E)$)+(0.05,0.05) -- ++(0.15, -0.1);
-        
-%         % NF || CE (由 N 点到 F 点的方向)
-%         \draw[red, thick, ->>] ($(N)!0.5!(F)$)+(-0.05,0.05) -- ++(0.1, -0.15);
-%         \draw[red, thick, ->>] ($(C)!0.5!(E)$)+(-0.05,0.05) -- ++(0.1, -0.15);
-
-%         % 6. 角度信息 (保留自之前的提示)
-%         % 输入角 alpha, beta
-%         \draw[thin, ->] (0, -0.6) arc[start angle=270, end angle=220, radius=0.6];
-%         \node at (-0.25, -0.8) {$\alpha$};
-%         \draw[thin, ->] (0, -0.4) arc[start angle=270, end angle=315, radius=0.4];
-%         \node at (0.25, -0.6) {$\beta$};
-
-%         % 连杆角 theta_1
-%         \draw[thin, ->] (M) ++(-0.5, 0) arc[start angle=180, end angle=225, radius=0.5];
-%         \node at ([shift={(-0.7,-0.2)}]M) {$\theta_1$};
-
-%         % 7. 绘制所有节点
-%         \filldraw[fill=white] (A) circle (2pt) node[above] {$A$};
-%         \filldraw[fill=white] (M) circle (1.8pt) node[left] {$M$};
-%         \filldraw[fill=white] (B) circle (1.8pt) node[left] {$B$};
-%         \filldraw[fill=white] (C) circle (1.8pt) node[right] {$C$};
-%         \filldraw[fill=white] (E) circle (1.8pt) node[right] {$E$};
-%         \filldraw[fill=black] (D) circle (1.2pt) node[below] {$D$};
-%         \filldraw[fill=black] (F) circle (1.2pt) node[below right] {$F$};
-
-%     \end{tikzpicture}
-%     \caption{符合 $AB:BD=3:2$ 比例及 $NF \parallel CE$ 约束的串联腿机构简图}
-%     \label{fig:serial_leg_3_2}
-% \end{figure}
 
 \begin{figure}[htbp]
 \centering

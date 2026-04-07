@@ -1,0 +1,11 @@
+\documentclass{standalone}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\begin{document}
+\tdplotsetmaincoords{70}{-30}
+\begin{tikzpicture}[tdplot_main_coords, font=\footnotesize, >=latex]
+\draw[->, thick, red] (0,0,0) -- (1.5,0,0) node[right]{X}; 
+\draw[->, thick, green] (0,0,0) -- (0,1.5,0) node[right]{Y};
+\draw[->, thick, blue] (0,0,0) -- (0,0,1.5) node[above]{Z};
+\end{tikzpicture}
+\end{document}

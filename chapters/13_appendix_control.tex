@@ -1,0 +1,705 @@
+\chapter{DWA算法实现代码附录}\label{chap:DWA-code}
+\subsection{控制器部分}
+\begin{minted}[breaklines,linenos,fontsize=\small]{C++}
+
+namespace controllers
+{
+
+TandemLeg::TandemLeg(
+  sp::Mahony & imu, float wheel_radius, float wheel_distance, float l1, float l2, float l3,
+  float l4, float lf_ecd, float lr_ecd, float rf_ecd, float rr_ecd, bool reverse_lf,
+  bool reverse_lr, bool reverse_rf, bool reverse_rr, bool reverse_left_wheel,
+  bool reverse_right_wheel)
+: imu_(imu),
+  wheel_radius_(wheel_radius),
+  wheel_distance_(wheel_distance),
+  l1_(l1),
+  l2_(l2),
+  l3_(l3),
+  l4_(l4),
+  lf_ecd_(lf_ecd),
+  lr_ecd_(lr_ecd),
+  rf_ecd_(rf_ecd),
+  rr_ecd_(rr_ecd),
+  reverse_lf_(reverse_lf),
+  reverse_lr_(reverse_lr),
+  reverse_rf_(reverse_rf),
+  reverse_rr_(reverse_rr),
+  reverse_left_wheel_(reverse_left_wheel),
+  reverse_right_wheel_(reverse_right_wheel)
+{
+  this->bar.l1 = l1_;
+  this->bar.l2 = l2_;
+  this->bar.l3 = l3_;
+  this->bar.l4 = l4_;
+  this->bar.l5 = 0.0f;
+}
+
+void TandemLeg::disable() { mode_ = ControlMode::DISABLE; }
+
+//普通力控模式
+void TandemLeg::cmd_force(ChassisState & cmd)
+{
+  mode_ = ControlMode::FORCE;
+  cmd_ = cmd;
+  //关闭s项和rotate项
+  cmd_.s = fdb_.s;
+  cmd_.rotate = fdb_.rotate;
+}
+
+//翻倒起身速控
+void TandemLeg::cmd_velocity() { mode_ = ControlMode::VELOCITY; }
+
+//防溜车“位控”
+void TandemLeg::cmd_position(ChassisState & cmd)
+{
+  mode_ = ControlMode::POSITION;
+  cmd_ = cmd;
+}
+
+void TandemLeg::init()
+{
+  left_wheel_ecd_ = chassis::motor_left_wheel.angle;
+  right_wheel_ecd_ = chassis::motor_right_wheel.angle;
+}
+
+void TandemLeg::control()
+{
+  if (mode_ == ControlMode::DISABLE) {
+    chassis::motor_lr.cmd(0.0f);
+    chassis::motor_lf.cmd(0.0f);
+    chassis::motor_rr.cmd(0.0f);
+    chassis::motor_rf.cmd(0.0f);
+    chassis::motor_left_wheel.cmd(0.0f);
+    chassis::motor_right_wheel.cmd(0.0f);
+    return;
+  }
+  if (mode_ == ControlMode::VELOCITY) {
+  }
+  if (mode_ == ControlMode::FORCE) {
+#ifdef K_FIT_ENABLED
+    lqr.k_fit(tandem_leg.leg_l.l0, tandem_leg.leg_r.l0);
+#endif
+    tandem_leg.input = lqr.calc(cmd_, fdb_);
+    tandem_leg.F0_calc();
+    tandem_leg.vmc_calc();
+  }
+  if (mode_ == ControlMode::POSITION) {
+#ifdef K_FIT_ENABLED
+    lqr.k_fit(tandem_leg.leg_l.l0, tandem_leg.leg_r.l0);
+#endif
+    tandem_leg.input = lqr.calc(cmd_, fdb_, true);
+    tandem_leg.F0_calc();
+    tandem_leg.vmc_calc();
+  }
+  chassis::motor_lf.cmd(sp::limit_max(tandem_leg.input.t_lf, TandemLeg::MAX_HIP_TORQUE));
+  chassis::motor_lr.cmd(sp::limit_max(tandem_leg.input.t_lr, TandemLeg::MAX_HIP_TORQUE));
+  chassis::motor_rf.cmd(sp::limit_max(tandem_leg.input.t_rf, TandemLeg::MAX_HIP_TORQUE));
+  chassis::motor_rr.cmd(sp::limit_max(tandem_leg.input.t_rr, TandemLeg::MAX_HIP_TORQUE));
+  chassis::motor_left_wheel.cmd(sp::limit_max(tandem_leg.input.t_wl, TandemLeg::MAX_WHEEL_TORQUE));
+  chassis::motor_right_wheel.cmd(sp::limit_max(tandem_leg.input.t_wr, TandemLeg::MAX_WHEEL_TORQUE));
+  // chassis::motor_lr.cmd(0.0f);
+  // chassis::motor_lf.cmd(0.0f);
+  // chassis::motor_rr.cmd(0.0f);
+  // chassis::motor_rf.cmd(0.0f);
+  // chassis::motor_left_wheel.cmd(0.0f);
+  // chassis::motor_right_wheel.cmd(0.0f);
+}
+
+void TandemLeg::update()
+{
+  chassis::filter_chassis();
+  update_wheel(
+    chassis::left_wheel_speed_filter.out, chassis::right_wheel_speed_filter.out,
+    chassis::left_wheel_angle_filter.out, chassis::right_wheel_angle_filter.out, left_wheel_ecd_,
+    right_wheel_ecd_);
+  update_joint(
+    chassis::motor_lf.angle, chassis::motor_lr.angle, chassis::motor_rf.angle,
+    chassis::motor_rr.angle, chassis::lf_speed_filter.out, chassis::lr_speed_filter.out,
+    chassis::rf_speed_filter.out, chassis::rr_speed_filter.out);
+  update_leg(leg_l);
+  update_leg(leg_r);
+  update_chassis_state();
+  //KF观测速度
+  kf_update_z();
+  ekf::kf.predict(ekf::F, ekf::Q);
+  // ekf::kf.update(ekf::z, ekf::H, ekf::R);
+
+  slip_detect();
+  support_F_calc();
+}
+
+void TandemLeg::update_wheel(
+  float left_wheel_speed, float right_wheel_speed, float left_wheel_angle, float right_wheel_angle,
+  float left_wheel_ecd, float right_wheel_ecd)
+{
+  state.l_dtheta = (reverse_left_wheel_) ? -left_wheel_speed : left_wheel_speed;
+  state.r_dtheta = (reverse_right_wheel_) ? -right_wheel_speed : right_wheel_speed;
+  state.l_theta = (reverse_left_wheel_ ? -1.0f : 1.0f) * (left_wheel_angle - left_wheel_ecd);
+  state.r_theta = (reverse_right_wheel_ ? -1.0f : 1.0f) * (right_wheel_angle - right_wheel_ecd);
+}
+
+void TandemLeg::update_joint(
+  float lf_angle, float lr_angle, float rf_angle, float rr_angle, float lf_speed, float lr_speed,
+  float rf_speed, float rr_speed)
+{
+  state.l_phi1 = sp::limit_angle((reverse_lf_ ? -1.0f : 1.0f) * (lf_angle - this->lf_ecd_));
+  state.l_phi4 = sp::limit_angle((reverse_lr_ ? -1.0f : 1.0f) * (lr_angle - this->lr_ecd_));
+  state.r_phi1 = sp::limit_angle((reverse_rf_ ? -1.0f : 1.0f) * (rf_angle - this->rf_ecd_));
+  state.r_phi4 = sp::limit_angle((reverse_rr_ ? -1.0f : 1.0f) * (rr_angle - this->rr_ecd_));
+
+  state.l_dphi1 = (reverse_lf_ ? -1.0f : 1.0f) * lf_speed;
+  state.l_dphi4 = (reverse_lr_ ? -1.0f : 1.0f) * lr_speed;
+  state.r_dphi1 = (reverse_rf_ ? -1.0f : 1.0f) * rf_speed;
+  state.r_dphi4 = (reverse_rr_ ? -1.0f : 1.0f) * rr_speed;
+
+  leg_l.phi1 = state.l_phi1;
+  leg_l.phi4 = state.l_phi4;
+  leg_r.phi1 = state.r_phi1;
+  leg_r.phi4 = state.r_phi4;
+}
+
+void TandemLeg::update_leg(Leg & leg)
+{
+  const float L5 = 0.0f;
+
+  float YD = l4_ * std::sin(leg.phi4);
+  float YB = l1_ * std::sin(leg.phi1);
+  float XD = L5 + l4_ * std::cos(leg.phi4);
+  float XB = l1_ * std::cos(leg.phi1);
+
+  float lBD = std::sqrt((XD - XB) * (XD - XB) + (YD - YB) * (YD - YB));
+  float A0 = 2 * l2_ * (XD - XB);
+  float B0 = 2 * l2_ * (YD - YB);
+  float C0 = l2_ * l2_ + lBD * lBD - l3_ * l3_;
+
+  leg.phi2 = 2 * std::atan2((B0 + std::sqrt(A0 * A0 + B0 * B0 - C0 * C0)), (A0 + C0));
+  leg.phi3 = std::atan2(YB - YD + l2_ * std::sin(leg.phi2), XB - XD + l2_ * std::cos(leg.phi2));
+
+  float XC = l1_ * std::cos(leg.phi1) + l2_ * std::cos(leg.phi2);
+  float YC = l1_ * std::sin(leg.phi1) + l2_ * std::sin(leg.phi2);
+
+  float L0 = std::sqrt((XC - L5 / 2) * (XC - L5 / 2) + YC * YC);
+  float phi0 = std::atan2(YC, (XC - L5 / 2));
+
+  leg.xc = XC;
+  leg.yc = YC;
+  leg.l0 = L0;
+  leg.phi0 = phi0;
+
+  leg.phi0_real = phi0 + imu_.pitch;
+
+  leg.dphi2 = 1 / (-l2_ * sin(leg.phi2 - leg.phi3)) *
+              (l1_ * sin(leg.phi1 - leg.phi3) * state.l_dphi1 -
+               l4_ * sin(leg.phi4 - leg.phi3) * state.l_dphi4);
+  if (&leg == &leg_l) {
+    fdb_.theta_ll = leg.phi0_real - sp::Pi / 2.0f;
+    fdb_.l_l0 = leg.l0;
+  }
+  else if (&leg == &leg_r) {
+    fdb_.theta_lr = leg.phi0_real - sp::Pi / 2.0f;
+    fdb_.r_l0 = leg.l0;
+  }
+  get_fdb_dtheta();
+  get_fdb_dl0();
+}
+
+void TandemLeg::update_chassis_state()
+{
+  if (mode_ == ControlMode::POSITION) {
+    this->fdb_.s += this->fdb_.ds * chassis::CHASSIS_CONTROL_T;
+    this->fdb_.rotate += this->fdb_.drotate * chassis::CHASSIS_CONTROL_T;
+  }
+  else {
+    this->fdb_.s = 0.0f;
+    this->fdb_.rotate = 0.0f;
+  }
+  this->fdb_.ds = this->wheel_radius_ / 2.0f * (this->state.l_dtheta + this->state.r_dtheta);
+  this->fdb_.drotate =
+    this->wheel_radius_ / 2.0f / this->wheel_distance_ *
+      (this->state.r_dtheta - this->state.l_dtheta) -
+    leg_l.l0 / 2.0f / this->wheel_distance_ * cos(fdb_.theta_ll) * fdb_.dtheta_ll +
+    leg_r.l0 / 2.0f / this->wheel_distance_ * cos(fdb_.theta_lr) * fdb_.dtheta_lr;
+  this->fdb_.phi = imu_.pitch;
+  this->fdb_.dphi = imu_.vpitch;
+}
+
+void TandemLeg::vmc_calc()
+{
+  //左腿
+  float l_j11 = (bar.l1 * sin(leg_l.phi0 - leg_l.phi3) * sin(leg_l.phi1 - leg_l.phi2)) /
+                sin(leg_l.phi3 - leg_l.phi2);
+  float l_j12 = (bar.l1 * cos(leg_l.phi0 - leg_l.phi3) * sin(leg_l.phi1 - leg_l.phi2)) /
+                (leg_l.l0 * sin(leg_l.phi3 - leg_l.phi2));
+  float l_j21 = (bar.l4 * sin(leg_l.phi0 - leg_l.phi2) * sin(leg_l.phi3 - leg_l.phi4)) /
+                sin(leg_l.phi3 - leg_l.phi2);
+  float l_j22 = (bar.l4 * cos(leg_l.phi0 - leg_l.phi2) * sin(leg_l.phi3 - leg_l.phi4)) /
+                (leg_l.l0 * sin(leg_l.phi3 - leg_l.phi2));
+
+  input.t_lf = (reverse_lf_ ? -1.0f : 1.0f) * (l_j11 * input.f0_l + l_j12 * input.tp_l);
+  input.t_lr = (reverse_lr_ ? -1.0f : 1.0f) * (l_j21 * input.f0_l + l_j22 * input.tp_l);
+  input.t_wl = (reverse_left_wheel_ ? -1.0f : 1.0f) * input.t_wl;  //左轮
+
+  //右腿
+  float r_j11 = (bar.l1 * sin(leg_r.phi0 - leg_r.phi3) * sin(leg_r.phi1 - leg_r.phi2)) /
+                sin(leg_r.phi3 - leg_r.phi2);
+  float r_j12 = (bar.l1 * cos(leg_r.phi0 - leg_r.phi3) * sin(leg_r.phi1 - leg_r.phi2)) /
+                (leg_r.l0 * sin(leg_r.phi3 - leg_r.phi2));
+  float r_j21 = (bar.l4 * sin(leg_r.phi0 - leg_r.phi2) * sin(leg_r.phi3 - leg_r.phi4)) /
+                sin(leg_r.phi3 - leg_r.phi2);
+  float r_j22 = (bar.l4 * cos(leg_r.phi0 - leg_r.phi2) * sin(leg_r.phi3 - leg_r.phi4)) /
+                (leg_r.l0 * sin(leg_r.phi3 - leg_r.phi2));
+
+  input.t_rf = (reverse_rf_ ? -1.0f : 1.0f) * (r_j11 * input.f0_r + r_j12 * input.tp_r);
+  input.t_rr = (reverse_rr_ ? -1.0f : 1.0f) * (r_j21 * input.f0_r + r_j22 * input.tp_r);
+  input.t_wr = (reverse_right_wheel_ ? -1.0f : 1.0f) * input.t_wr;  //右轮
+}
+
+void TandemLeg::F0_calc()
+{
+  //支持力=重力补偿+腿长补偿+roll补偿+侧向惯性力矩补偿
+  float chassis_force = chassis::CHASSIS_WEIGHT * chassis::GRAVITY_ACC;
+  //重力补偿
+  float F0_L = chassis_force * cosf(fdb_.theta_ll) / 2.0f;
+  float F0_R = chassis_force * cosf(fdb_.theta_lr) / 2.0f;
+  //腿长补偿
+  l_leg_length_pid.calc(cmd_.l_l0, leg_l.l0);
+  r_leg_length_pid.calc(cmd_.l_l0, leg_r.l0);
+  //roll补偿
+  leg_roll_pid.calc(0.0f, imu_.roll);
+  //侧向惯性力矩补偿
+  float lateral_inertia_torque =
+    chassis::CHASSIS_WEIGHT / 2 * 1 / (2 * chassis::WHEEL_DISTANCE) * fdb_.dphi * fdb_.s;
+  input.f0_l = F0_L + l_leg_length_pid.out + leg_roll_pid.out - lateral_inertia_torque;
+  input.f0_r = F0_R + r_leg_length_pid.out - leg_roll_pid.out + lateral_inertia_torque;
+}
+
+void TandemLeg::get_fdb_dtheta()
+{
+  get_fdb_dtheta_leg(leg_l);
+  get_fdb_dtheta_leg(leg_r);
+}
+
+void TandemLeg::get_fdb_dtheta_leg(Leg & leg)
+{
+  float J11 = bar.l1 * sin(leg.phi1 - leg.phi2) * sin(leg.phi3) / sin(leg.phi2 - leg.phi3);
+  float J12 = bar.l4 * sin(leg.phi3 - leg.phi4) * sin(leg.phi2) / sin(leg.phi2 - leg.phi3);
+  float J21 = -bar.l1 * sin(leg.phi1 - leg.phi2) * sin(leg.phi3) / sin(leg.phi2 - leg.phi3);
+  float J22 = -bar.l4 * sin(leg.phi3 - leg.phi4) * sin(leg.phi2) / sin(leg.phi2 - leg.phi3);
+
+  if (&leg == &leg_l) {
+    float dxc_l = J11 * state.l_dphi1 + J12 * state.l_dphi4;
+    float dyc_l = J21 * state.l_dphi1 + J22 * state.l_dphi4;
+    fdb_.dtheta_ll =
+      -(leg.yc * dxc_l - leg.xc * dyc_l) / (leg.xc * leg.xc + leg.yc * leg.yc) + imu.vpitch;
+  }
+  if (&leg == &leg_r) {
+    float dxc_l = J11 * state.r_dphi1 + J12 * state.r_dphi4;
+    float dyc_l = J21 * state.r_dphi1 + J22 * state.r_dphi4;
+    fdb_.dtheta_lr =
+      -(leg.yc * dxc_l - leg.xc * dyc_l) / (leg.xc * leg.xc + leg.yc * leg.yc) + imu.vpitch;
+  }
+}
+
+void TandemLeg::get_fdb_dl0()
+{
+  get_fdb_dl0_leg(leg_l);
+  get_fdb_dl0_leg(leg_r);
+}
+
+void TandemLeg::get_fdb_dl0_leg(Leg & leg)
+{
+  if (&leg == &leg_l) {
+    float dXC = -bar.l1 * sin(leg.phi1) * state.l_dphi1 - bar.l2 * sin(leg.phi2) * leg_l.dphi2;
+    float dYC = bar.l1 * cos(leg.phi1) * state.l_dphi1 + bar.l2 * cos(leg.phi2) * leg_l.dphi2;
+    fdb_.dl_l0 = (leg.xc * dXC + leg.yc * dYC) / leg.l0;
+  }
+  if (&leg == &leg_r) {
+    float dXC = -bar.l1 * sin(leg.phi1) * state.r_dphi1 - bar.l2 * sin(leg.phi2) * leg_r.dphi2;
+    float dYC = bar.l1 * cos(leg.phi1) * state.r_dphi1 + bar.l2 * cos(leg.phi2) * leg_r.dphi2;
+    fdb_.dr_l0 = (leg.xc * dXC + leg.yc * dYC) / leg.l0;
+  }
+}
+
+//KF更新
+//需要在imu已经跑起来后调用
+void TandemLeg::kf_update_z()
+{
+  static float last_gyro_z = imu_.vyaw;
+  float acc_z = (imu_.vyaw - last_gyro_z) / CONTROL_T;
+
+  ekf::z[0][0] = fdb_.ds;
+  ekf::z[1][0] = bmi088.acc[0] * cosf(imu.pitch) - chassis::GRAVITY_ACC * sinf(imu.pitch);
+  ekf::z[2][0] = fdb_.drotate;
+  ekf::z[3][0] = acc_z;
+  if (remote.sw_l == sp::DBusSwitchMode::DOWN) {
+    ekf::kf_initialized = false;
+  }
+  if (!ekf::kf_initialized) {
+    ekf::kf_initialized = true;
+    ekf::kf.x[0][0] = ekf::z[0][0];
+    ekf::kf.x[1][0] = ekf::z[1][0];
+    ekf::kf.x[2][0] = ekf::z[2][0];
+    ekf::kf.x[3][0] = ekf::z[3][0];
+    return;
+  }
+}
+
+void TandemLeg::slip_detect()
+{
+  // float innovation_v = chassis.fdb.ds - (z[1][0] * T_CONTROL +);  // 残差
+
+  // 核心逻辑：如果残差过大，说明编码器速度突变（打滑），
+  // 此时我们不信任编码器，极大幅度增加测量噪声 R
+  if (std::abs(ekf::kf.data["ds"]) > SLIP_THRESHOLD) {
+    // 检测到打滑
+    // 策略：瞬间增大测量噪声，让滤波器主要保留预测值（即保留 IMU 积分结果）
+    ekf::R = ekf::R_slip_data;
+    slip_flag_ = true;
+    // Q = q_slip_diag_vec;
+    ekf::Q = ekf::Q_data_slip;
+    ekf::Q[0][0] = 0.1f;
+    ekf::Q[1][1] = 10.0f;
+    ekf::Q[2][2] = 0.5f;
+    ekf::Q[3][3] = 0.5f;
+  }
+  // else {
+  //   R = R_data;
+  //   slip_flag_ = false;
+  // }
+  //在0附近时来回切？
+  // if(std::abs(innovation_v) <= SLIP_OVER_THRESHOLD) {
+  //     // 正常情况，恢复正常测量噪声
+  //     R = R_data;
+  // }
+}
+
+void TandemLeg::support_F_calc()
+{
+  support_F_calc_leg(leg_l);
+  support_F_calc_leg(leg_r);
+}
+
+void TandemLeg::support_F_calc_leg(Leg & leg)
+{
+  float zM = ins_accel_corrected[2];
+  if (&leg == &leg_l) {
+    float P = input.f0_l * cosf(state.l_theta) + input.tp_l * sinf(state.l_theta) / leg.l0;
+    state.l_F0 = P + chassis::CHASSIS_WEIGHT * chassis::GRAVITY_ACC / 2.0f +
+                 chassis::CHASSIS_WEIGHT * zM / 2.0f;
+  }
+  if (&leg == &leg_r) {
+    float P = input.f0_r * cosf(state.r_theta) + input.tp_r * sinf(state.r_theta) / leg.l0;
+    state.r_F0 = P + chassis::CHASSIS_WEIGHT * chassis::GRAVITY_ACC / 2.0f +
+                 chassis::CHASSIS_WEIGHT * zM / 2.0f;
+  }
+}
+}  // namespace controllers
+
+
+\end{minted}
+
+\subsection{交互部分}
+\begin{minted}[breaklines,linenos,fontsize=\small]{python}
+import math
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+show_animation = True  # 动画
+
+
+class Config(object):
+    """
+    用来仿真的参数，
+    """
+
+    def __init__(self):
+        # robot parameter
+        self.max_speed = 0.5  # [m/s]  # 最大速度
+        self.min_speed = -0.5  # [m/s]  # 最小速度，设置为可以倒车
+        # self.min_speed = 0  # [m/s]  # 最小速度，设置为不倒车
+        self.max_yawrate = 2  # [rad/s]  # 最大角速度
+        self.max_accel = 0.2  # [m/ss]  # 最大加速度
+        self.max_dyawrate = 2  # [rad/ss]  # 最大角加速度
+        self.v_reso = 0.01  # [m/s]，速度分辨率
+        self.yawrate_reso = 0.1  # [rad/s]，角速度分辨率
+        self.dt = 0.1  # [s]  # 采样周期
+        self.predict_time = 3.0  # [s]  # 向前预估三秒
+        self.to_goal_cost_gain = 1.0  # 目标代价增益
+        self.speed_cost_gain = 1.0  # 速度代价增益
+        self.robot_radius = 0.09  # [m]  # 机器人半径
+
+def motion(x, u, dt):
+    """
+    :param x: 位置参数，在此叫做位置空间
+    :param u: 速度和加速度，在此叫做速度空间
+    :param dt: 采样时间
+    :return:
+    """
+    x[0] += u[0] * math.cos(x[2]) * dt  # x方向位移
+    x[1] += u[0] * math.sin(x[2]) * dt  # y方向位移
+    x[2] += u[1] * dt  # 航向角
+    x[3] = u[0]  # 速度v
+    x[4] = u[1]  # 角速度w
+    return x
+
+
+def calc_dynamic_window(x, config):
+    """
+    位置空间集合
+    :param x:当前位置空间,符号参考硕士论文
+    :param config:
+    :return:目前是两个速度的交集，还差一个
+    """
+
+    # 车辆能够达到的最大最小速度
+    vs = [config.min_speed, config.max_speed, -config.max_yawrate, config.max_yawrate]
+
+    # 一个采样周期能够变化的最大最小速度
+    vd = [
+        x[3] - config.max_accel * config.dt,
+        x[3] + config.max_accel * config.dt,
+        x[4] - config.max_dyawrate * config.dt,
+        x[4] + config.max_dyawrate * config.dt,
+    ]
+    #  print(Vs, Vd)
+
+    # 求出两个速度集合的交集
+    vr = [max(vs[0], vd[0]), min(vs[1], vd[1]), max(vs[2], vd[2]), min(vs[3], vd[3])]
+
+    return vr
+
+
+# 产生运动轨迹
+def calc_trajectory(x_init, v, w, config):
+    """
+    预测3秒内的轨迹
+    :param x_init:位置空间
+    :param v:速度
+    :param w:角速度
+    :param config:
+    :return: 每一次采样更新的轨迹，位置空间垂直堆叠
+    """
+    x = np.array(x_init)
+    trajectory = np.array(x)
+    time = 0
+    while time <= config.predict_time:
+        x = motion(x, [v, w], config.dt)
+        trajectory = np.vstack((trajectory, x))  # 垂直堆叠，vertical
+        time += config.dt
+    return trajectory
+
+
+def calc_to_goal_cost(trajectory, goal, config):
+    """
+    计算轨迹到目标点的代价
+    :param trajectory:轨迹搜索空间
+    :param goal:
+    :param config:
+    :return: 轨迹到目标点欧式距离
+    """
+    # calc to goal cost. It is 2D norm.
+
+    dx = goal[0] - trajectory[-1, 0]
+    dy = goal[1] - trajectory[-1, 1]
+    goal_dis = math.sqrt(dx**2 + dy**2)
+    cost = config.to_goal_cost_gain * goal_dis
+
+    return cost
+
+
+def calc_obstacle_cost(traj, ob, config):
+    """
+    计算预测轨迹和障碍物的最小距离，dist(v,w)
+    :param traj:
+    :param ob:
+    :param config:
+    :return:
+    """
+    # calc obstacle cost inf: collision, 0:free
+
+    min_r = float("inf")  # 距离初始化为无穷大
+
+    for ii in range(0, len(traj[:, 1])):
+        for i in range(len(ob[:, 0])):
+            ox = ob[i, 0]
+            oy = ob[i, 1]
+            dx = traj[ii, 0] - ox
+            dy = traj[ii, 1] - oy
+
+            r = math.sqrt(dx**2 + dy**2)
+            if r <= config.robot_radius:
+                return float("Inf")  # collision
+
+            if min_r >= r:
+                min_r = r
+
+    return 1.0 / min_r  # 越小越好 与障碍物距离越近，该值会越大；
+
+
+def calc_final_input(x, u, vr, config, goal, ob):
+    """
+    计算采样空间的评价函数，选择最合适的那一个作为最终输入
+    :param x:位置空间
+    :param u:速度空间
+    :param vr:速度空间交集
+    :param config:
+    :param goal:目标位置
+    :param ob:障碍物
+    :return:
+    """
+    x_init = x[:]
+    min_cost = 10000.0
+    min_u = u
+
+    best_trajectory = np.array([x])
+    for v in np.arange(vr[0], vr[1], config.v_reso):  
+        for w in np.arange(vr[2], vr[3], config.yawrate_reso): 
+            trajectory = calc_trajectory(x_init, v, w, config)
+
+            # calc cost
+            to_goal_cost = calc_to_goal_cost(
+                trajectory, goal, config
+            )  # trajectory与目标的欧式距离
+            speed_cost = config.speed_cost_gain * (
+                config.max_speed - trajectory[-1, 3]
+            )  # v越大，该项越小，则效果越好；
+            ob_cost = calc_obstacle_cost(
+                trajectory, ob, config
+            )  # 返回的是距离的倒数，该值约小，距离越大，越好
+            final_cost = (
+                to_goal_cost + speed_cost + 0 * ob_cost
+            )  # 总计代价，越小轨迹约好
+
+            # search minimum trajectory
+            if min_cost >= final_cost:
+                min_cost = final_cost
+                min_u = [v, w]  
+                best_trajectory = trajectory  
+
+    return min_u, best_trajectory
+
+
+def dwa_control(x, u, config, goal, ob):
+    """
+    调用前面的几个函数，生成最合适的速度空间和轨迹搜索空间
+    :param x: 起始位置
+    :param u:初始速度空间（v,w）
+    :param config:
+    :param goal:目标位置
+    :param ob:障碍物
+    :return:
+    """
+    # Dynamic Window control
+
+    vr = calc_dynamic_window(x, config)  # 计算动态窗口，即机器人的电机实际物理参数范围
+
+    u, trajectory = calc_final_input(
+        x, u, vr, config, goal, ob
+    )  # 选出最优轨迹搜索空间和速度空间
+
+    return u, trajectory
+
+
+def plot_arrow(x, y, yaw, length=0.5, width=0.1):
+    plt.arrow(
+        x,
+        y,
+        length * math.cos(yaw),
+        length * math.sin(yaw),
+        head_length=1.5 * width,
+        head_width=width,
+    )
+    plt.plot(x, y)
+
+
+def main():
+    x = np.array([0.0, 0.0, math.pi / 2.0, 0.2, 0.0])
+
+    goal = np.array([10, 10])
+
+    # matrix二维矩阵 障碍物
+    ob = np.matrix(
+        [
+            [-1, -1],
+            [0, 2],
+            [4.0, 2.0],
+            [5.0, 4.0],
+            [5.0, 5.0],
+            [5.0, 6.0],
+            [5.0, 9.0],
+            [8.0, 9.0],
+            [7.0, 9.0],
+            [12.0, 12.0],
+        ]
+    )
+    # ob = np.matrix([[0, 2]])
+    # ob = np.matrix([[2, 2]])
+
+    u = np.array([0.2, 0.0])  # 初始速度空间(v,w)
+    config = Config()  # 初始化物理运动参数
+    trajectory = np.array(x)  # 初始轨迹空间
+
+    for i in range(1000):
+        u, best_trajectory = dwa_control(
+            x, u, config, goal, ob
+        )  # 获取最优速度空间和轨迹参数
+        x = motion(x, u, config.dt)  # 机器人运动方程 x为机器人状态空间
+
+        trajectory = np.vstack((trajectory, x))  # store state history
+
+        if show_animation:
+            draw_dynamic_search(best_trajectory, x, goal, ob)
+
+        # check goal
+        if (
+            math.sqrt((x[0] - goal[0]) ** 2 + (x[1] - goal[1]) ** 2)
+            <= config.robot_radius
+        ):
+            print("Goal!!")
+            break
+
+    print("Done")
+
+    draw_path(trajectory, goal, ob, x)
+
+
+def draw_dynamic_search(best_trajectory, x, goal, ob):
+    """
+    画出动态搜索过程图
+    :return:
+    """
+    plt.cla()  # 清除上次绘制图像
+    plt.plot(best_trajectory[:, 0], best_trajectory[:, 1], "-g")
+    plt.plot(x[0], x[1], "xr")
+    plt.plot(0, 0, "og")
+    plt.plot(goal[0], goal[1], "ro")
+    plt.plot(ob[:, 0], ob[:, 1], "bs")
+    plot_arrow(x[0], x[1], x[2])
+    plt.axis("equal")
+    plt.grid(True)
+    plt.pause(0.0001)
+
+
+def draw_path(trajectory, goal, ob, x):
+    """
+    画图函数
+    :return:
+    """
+    plt.cla()  # 清除上次绘制图像
+
+    plt.plot(x[0], x[1], "xr")
+    plt.plot(0, 0, "og")
+    plt.plot(goal[0], goal[1], "ro")
+    plt.plot(ob[:, 0], ob[:, 1], "bs")
+    plot_arrow(x[0], x[1], x[2])
+    plt.axis("equal")
+    plt.grid(True)
+    plt.plot(trajectory[:, 0], trajectory[:, 1], "r")
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
+\end{minted}
