@@ -83,48 +83,203 @@
 
 \end{tikzpicture}
 
+下图给出同一模型的另一视角，用于更清楚地展示机体、轮子与腿部的相对位置关系。
+
+% 另一视角
+\tdplotsetmaincoords{70}{140}
+\begin{tikzpicture}[tdplot_main_coords, font=\footnotesize, >=latex]
+
+% 1. 机器人坐标系 (在地面)
+\draw[->, thick, red] (0,0,0) -- (1.5,0,0);
+\node[red] at (1.8, -0.4, 0) {机器人系};
+\draw[->, thick, green] (0,0,0) -- (0,1.5,0);
+\draw[->, thick, blue] (0,0,0) -- (0,0,1.5);
+
+% 地平面辅助线
+\draw[gray!50, dashed] (-1.5,-2,0) -- (3.5,-2,0) -- (3.5,2,0) -- (-1.5,2,0) -- cycle;
+
+% 2. 轮子中心 (左右轮)
+\coordinate (WL) at (0, 0.8, 0.4);
+\coordinate (WR) at (0, -0.8, 0.4);
+
+% 轮子 (在 Y-Z 平面内绘制，确保与地面相切)
+\begin{scope}[canvas is yz plane at x=0]
+    \draw[thick, fill=white] (0.8, 0.4) circle (0.4);
+    \draw[thick, fill=white] (-0.8, 0.4) circle (0.4);
+\end{scope}
+
+% 轮子转角指示
+\node at (0.3, 0.8, 0.8) {$\theta_{wl}$};
+\node at (0.3, -0.8, 0.8) {$\theta_{wr}$};
+
+% 3. 腿
+\coordinate (BodyCenter) at (1.5, 0, 3.2);
+\coordinate (HL) at (1.5, 0.8, 3.2);
+\coordinate (HR) at (1.5, -0.8, 3.2);
+
+\draw[thick] (WL) -- (HL);
+\draw[thick] (WR) -- (HR);
+
+% 左腿倾斜角 theta_ll
+\draw[dashed, thin] (WL) -- ($(WL)+(0,0,2.5)$);
+\draw[->, thin] ($(WL)+(0,0,1.5)$) arc[start angle=90, end angle=55, radius=1.5];
+\node at ($(WL)+(0.4,0,1.8)$) {$\theta_{ll}$};
+
+% 右腿倾斜角 theta_lr
+\draw[dashed, thin] (WR) -- ($(WR)+(0,0,2.5)$);
+\draw[->, thin] ($(WR)+(0,0,1.8)$) arc[start angle=90, end angle=55, radius=1.8];
+\node at ($(WR)+(0.6,0,2.1)$) {$\theta_{lr}$};
+
+% 4. 机体 (Base)
+\begin{scope}[shift={(BodyCenter)}]
+\draw[thick, fill=white, fill opacity=0.8] (-0.8,-1.2,-0.6) -- (1.2,-1.2,-0.6) -- (1.2,1.2,-0.6) -- (-0.8,1.2,-0.6) -- cycle;
+\draw[thick] (-0.8,-1.2,-0.6) -- (-0.8,-1.2,0.6);
+\draw[thick] (1.2,-1.2,-0.6) -- (1.2,-1.2,0.6);
+\draw[thick] (1.2,1.2,-0.6) -- (1.2,1.2,0.6);
+\draw[thick] (-0.8,1.2,-0.6) -- (-0.8,1.2,0.6);
+\draw[thick, fill=white, fill opacity=0.8] (-0.8,-1.2,0.6) -- (1.2,-1.2,0.6) -- (1.2,1.2,0.6) -- (-0.8,1.2,0.6) -- cycle;
+
+% Base 坐标系
+\draw[->, thick, red] (0,0,0) -- (2.5,0,0) node[anchor=north west]{机体系};
+\draw[->, thick, green] (0,0,0) -- (0,2.0,0);
+\draw[->, thick, blue] (0,0,0) -- (0,0,2.5);
+
+% theta_b 绕机体系红色轴（x轴）转动的示意弧线
+\begin{scope}[canvas is yz plane at x=0]
+    \draw[->, thick] (0, 1.0) arc[start angle=90, end angle=25, radius=1.0];
+    \node at (0.55, 1.25) {$\theta_b$};
+\end{scope}
+
+% phi 绕 Z 轴偏航角弧线
+\draw[->, thick] (0.2, 0, 2.3) arc[start angle=0, end angle=180, x radius=0.4, y radius=0.15];
+\node at (0.4, 0.4, 2.5) {$\phi$};
+\end{scope}
+
+\end{tikzpicture}
+
+
+\begin{tikzpicture}[>=latex, line width=0.8pt]
+
+    % --- 参数定义 ---
+    \def\angle{75} % 腿部的倾斜角度
+    \def\Rw{0.8}   % 轮子半径
+    \def\Lw{2.0}   % 腿下半部分长度
+    \def\Lb{2.5}   % 腿上半部分长度
+    \def\rectW{3.0} % 身体矩形宽度
+    \def\rectH{1.2} % 身体矩形高度
+
+    % 坐标计算
+    \coordinate (WheelCenter) at (0, \Rw);
+    \coordinate (LegMid) at ($(WheelCenter) + (\angle:\Lw)$);
+    \coordinate (BodyCenter) at ($(WheelCenter) + (\angle:\Lw+\Lb)$);
+
+    % --- 绘制地面 ---
+    \draw[thick] (-1.5, 0) -- (6, 0);
+    \foreach \x in {-1.2,-0.8,...,5.8}
+        \draw (\x, 0) -- (\x-0.2, -0.2);
+
+    % --- 绘制轮子 ---
+    \draw (WheelCenter) circle (\Rw);
+    \node[anchor=north east] at ($(WheelCenter) + (-0.5, 0)$){$I_w, m_w$};
+
+    % --- 绘制腿部 ---
+    \draw (WheelCenter) -- (BodyCenter);
+    % 腿部中点标记和标签
+    \filldraw[fill=white] ($(WheelCenter)!0.5!(BodyCenter)$ African) circle (2pt) node[right=5pt] {$I_{l,l} \quad m_l$};
+    % 腿部分段标记 (叉号)
+    \node at (LegMid) {$\times$};
+
+    % --- 绘制身体 (倾斜矩形) ---
+    \begin{scope}[shift={(BodyCenter)}, rotate={\angle-90}]
+        \draw ( (-\rectW/2, -\rectH/2) rectangle (\rectW/2, \rectH/2);
+    \end{scope}
+
+    % --- 绘制力与力矩 (轮子处) ---
+    % 垂直力 (蓝色)
+    \draw[->, blue, thick] (WheelCenter) -- ++(0, 1.2) node[left] {$F_{wh,l}$};
+    % 水平力 (红色)
+    \draw[->, red, thick] (WheelCenter) -- ++(1.5, 0) node[above] {$F_{ws,l}$};
+    % 旋转力矩
+    \draw[->] ($(WheelCenter) + (0.5, 0.2)$) arc[start angle=20, end angle=-200, radius=0.4] node[above right] {$T_{wl}$};
+
+    % --- 绘制力与力矩 (身体处) ---
+    % 垂直力 (蓝色)
+    \draw[->, blue, thick] (BodyCenter) -- ++(0, 1.2) node[right] {$F_{bh,l}$};
+    % 水平力 (红色)
+    \draw[->, red, thick] (BodyCenter) -- ++(1.5, 0) node[below] {$F_{bs,l}$};
+    % 旋转力矩
+    \draw[->] ($(BodyCenter) + (-0.3, 0.4)$) arc[start angle=120, end angle=380, radius=0.4] node[right=2pt] {$T_{bl}$};
+
+    % --- 尺寸标注 ---
+    % Rw 标注
+    \draw[<->] (2.5, 0) -- (2.5, \Rw) node[midway, right] {$R_w$};
+    \draw[thin, dashed] (WheelCenter) -- (2.7, \Rw);
+
+    % 长度标注 (平行于腿部)
+    \begin{scope}[shift={(3.5, 0.5)}, rotate=\angle]
+        \draw[<->] (0, 0) -- (\Lw, 0) node[midway, right=3pt, rotate=\angle-90] {$l_{w,l}$};
+        \draw[<->] (0, \Lw) -- (0, \Lw+\Lb) node[midway, right=3pt, rotate=\angle-90] {$l_{b,l}$};
+        \node[right=20pt] at (0, 2.2) {$l_l$};
+    \end{scope}
+
+    % 顶部字母 A
+    \node[font=\Huge] at ($(BodyCenter) + (0, 2.5)$) {$A$};
+
+\end{tikzpicture}
+
 \subsection{变量（标有*号的为独立变量）}
 
-\begin{table}[H]
-    \centering
-    \caption{变量定义}\label{tab:variable_definition}
-    \renewcommand{\arraystretch}{1.3}
-    \begin{tabularx}{\textwidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-        \toprule
-        \textbf{参数} & \textbf{含义} & \textbf{说明} \\
-        \midrule
-        $\theta_{w,i}$ $(i=l,r)$ & 驱动轮转角 & 自然坐标系法向 \\
-        $\theta_{l,i}$ $(i=l,r)$ & 腿倾斜角 & 自然坐标系法向 \\
-        $\theta_b$ & 机体倾斜角 & 自然坐标系法向 \\
-        $\phi$ & 偏航角 & yaw \\
-        $s$ & 自然坐标系下机器人水平方向移动距离 &  \\
-        $s_b$ & 自然坐标系下机体质心水平方向移动距离 &  \\
-        $h_b$ & 自然坐标系下机体质心竖直方向移动距离 &  \\
-        $s_{l,i}$ $(i=l,r)$ & 自然坐标系下腿部质心水平方向移动距离 &  \\
-        $h_{l,i}$ $(i=l,r)$ & 自然坐标系下腿部质心竖直方向移动距离 &  \\
-        $T_{w,i}$ $(i=l,r)$ & 驱动轮转矩 & 腿-轮 \\
-        $T_{b,i}$ $(i=l,r)$ & 腿部转矩 & 机体-腿 \\
-        $f_i$ $(i=l,r)$ & 地面对驱动轮摩擦力 &  \\
-        $F_{ws,i}$ $(i=l,r)$ & 驱动轮对腿水平方向作用力 &  \\
-        $F_{wh,i}$ $(i=l,r)$ & 驱动轮对腿竖直方向作用力 &  \\
-        $F_{bs,i}$ $(i=l,r)$ & 腿对机体水平方向作用力 &  \\
-        $F_{bh,i}$ $(i=l,r)$ & 腿对机体竖直方向作用力 &  \\
-        $R_w$ & 驱动轮半径 &  \\
-        $R_l$ & 驱动轮轮距/2 &  \\
-        $l_i$ $(i=l,r)$ & 腿长 &  \\
-        $l_{w,i}$ $(i=l,r)$ & 驱动轮到腿部质心距离 &  \\
-        $l_{b,i}$ $(i=l,r)$ & 驱动轮到腿部质心距离 &  \\
-        $l_c$ & 机体质心到腿部关节距离 &  \\
-        $m_w$ & 驱动轮质量 &  \\
-        $m_l$ & 腿部质量 &  \\
-        $m_b$ & 机体质量 &  \\
-        $I_w$ & 驱动轮转动惯量（自然坐标系法向） &  \\
-        $I_{l,i}$ $(i=l,r)$ & 腿部转动惯量（自然坐标系法向） &  \\
-        $I_b$ & 机体转动惯量（自然坐标系法向） &  \\
-        $I_z$ & 机器人$z$轴转动惯量 &  \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{>{\centering\arraybackslash}p{0.28\textwidth} >{\centering\arraybackslash}p{0.48\textwidth} >{\centering\arraybackslash}p{0.20\textwidth}}
+    \caption{变量定义}\label{tab:variable_definition}\\
+    \toprule
+    \textbf{参数} & \textbf{含义} & \textbf{说明} \\
+    \midrule
+    \endfirsthead
+
+    \multicolumn{3}{c}{\tablename\ \thetable\ 变量定义（续）}\\
+    \toprule
+    \textbf{参数} & \textbf{含义} & \textbf{说明} \\
+    \midrule
+    \endhead
+
+    \midrule
+    \multicolumn{3}{r}{续下页}\\
+    \endfoot
+
+    \bottomrule
+    \endlastfoot
+
+    $\theta_{w,i}$ $(i=l,r)$ & 驱动轮转角 & 自然坐标系法向 \\
+    $\theta_{l,i}$ $(i=l,r)$ & 腿倾斜角 & 自然坐标系法向 \\
+    $\theta_b$ & 机体倾斜角 & 自然坐标系法向 \\
+    $\phi$ & 偏航角 & yaw \\
+    $s$ & 自然坐标系下机器人水平方向移动距离 &  \\
+    $s_b$ & 自然坐标系下机体质心水平方向移动距离 &  \\
+    $h_b$ & 自然坐标系下机体质心竖直方向移动距离 &  \\
+    $s_{l,i}$ $(i=l,r)$ & 自然坐标系下腿部质心水平方向移动距离 &  \\
+    $h_{l,i}$ $(i=l,r)$ & 自然坐标系下腿部质心竖直方向移动距离 &  \\
+    $T_{w,i}$ $(i=l,r)$ & 驱动轮转矩 & 腿-轮 \\
+    $T_{b,i}$ $(i=l,r)$ & 腿部转矩 & 机体-腿 \\
+    $f_i$ $(i=l,r)$ & 地面对驱动轮摩擦力 &  \\
+    $F_{ws,i}$ $(i=l,r)$ & 驱动轮对腿水平方向作用力 &  \\
+    $F_{wh,i}$ $(i=l,r)$ & 驱动轮对腿竖直方向作用力 &  \\
+    $F_{bs,i}$ $(i=l,r)$ & 腿对机体水平方向作用力 &  \\
+    $F_{bh,i}$ $(i=l,r)$ & 腿对机体竖直方向作用力 &  \\
+    $R_w$ & 驱动轮半径 &  \\
+    $R_l$ & 驱动轮轮距/2 &  \\
+    $l_i$ $(i=l,r)$ & 腿长 &  \\
+    $l_{w,i}$ $(i=l,r)$ & 驱动轮到腿部质心距离 &  \\
+    $l_{b,i}$ $(i=l,r)$ & 驱动轮到腿部质心距离 &  \\
+    $l_c$ & 机体质心到腿部关节距离 &  \\
+    $m_w$ & 驱动轮质量 &  \\
+    $m_l$ & 腿部质量 &  \\
+    $m_b$ & 机体质量 &  \\
+    $I_w$ & 驱动轮转动惯量（自然坐标系法向） &  \\
+    $I_{l,i}$ $(i=l,r)$ & 腿部转动惯量（自然坐标系法向） &  \\
+    $I_b$ & 机体转动惯量（自然坐标系法向） &  \\
+    $I_z$ & 机器人$z$轴转动惯量 &  \\
+\end{longtable}
 
 *1：实际机器人腿部为五连杆机构，腿长可变，长度由腿部控制器控制，且质心位置、转动惯量均随腿长变化。\\
 *2：绕z轴的转动惯量简化为常量。
