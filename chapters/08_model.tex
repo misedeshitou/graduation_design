@@ -216,87 +216,97 @@
 根据变量、参数定义和几何关系得到系统的运动学方程，进而解得各变量的表达式
 
 \begin{equation}
-s = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) \tag{2.1}
+s = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) 
+\label{eq:s}
 \end{equation}
 
 \begin{equation}
-h_b = \frac{l_l}{2}\cos\theta_{l,l} + \frac{l_r}{2}\cos\theta_{l,r} \tag{2.2}
+h_b = \frac{l_l}{2}\cos\theta_{l,l} + \frac{l_r}{2}\cos\theta_{l,r} 
+\label{eq:h_b}
 \end{equation}
 
 \begin{equation}
-s_{l,i} = R_w\theta_{w,i} + l_{w,i}\sin\theta_{l,i} \tag{2.3}
+s_{l,i} = R_w\theta_{w,i} + l_{w,i}\sin\theta_{l,i}
+\label{eq:s_li}
 \end{equation}
 
 \begin{equation}
-h_{l,i} = h_b - l_{b,i}\cos\theta_{l,i} \tag{2.4}
+h_{l,i} = h_b - l_{b,i}\cos\theta_{l,i} 
+\label{eq:h_li}
 \end{equation}
 
 \begin{equation}
-R_w\theta_{w,l} = s_b - R_l\phi - l_l\sin\theta_{l,l} \tag{2.5}
+R_w\theta_{w,l} = s_b - R_l\phi - l_l\sin\theta_{l,l} 
+\label{eq:theta_wl}
 \end{equation}
 
 \begin{equation}
-R_w\theta_{w,r} = s_b + R_l\phi - l_r\sin\theta_{l,r} \tag{2.6}
+R_w\theta_{w,r} = s_b + R_l\phi - l_r\sin\theta_{l,r}
+\label{eq:theta_wr}
 \end{equation}
 
-联立式 (2.5)(2.6)
+联立式 \ref{eq:theta_wl} 和 \ref{eq:theta_wr} 可解得 $s_b$ 和 $\phi$ 的表达式：
 
 \begin{equation}
-\phi = \frac{R_w}{2R_l}(-\theta_{w,l} + \theta_{w,r}) - \frac{l_l}{2R_l}\sin\theta_{l,l} + \frac{l_r}{2R_l}\sin\theta_{l,r} \tag{2.7}
-\end{equation}
-
-\begin{equation}
-s_b = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) + \frac{l_l}{2}\sin\theta_{l,l} + \frac{l_r}{2}\sin\theta_{l,r} \tag{2.8}
-\end{equation}
-
-式 (2.1)(2.2)(2.3)(2.4)(2.7)(2.8) 对时间分别求一/二阶导
-
-\begin{equation}
-\dot{s} = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) \tag{2.9}
+\phi = \frac{R_w}{2R_l}(-\theta_{w,l} + \theta_{w,r}) - \frac{l_l}{2R_l}\sin\theta_{l,l} + \frac{l_r}{2R_l}\sin\theta_{l,r} 
+\label{eq:phi}
 \end{equation}
 
 \begin{equation}
-\ddot{s} = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) \tag{2.10}
+s_b = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) + \frac{l_l}{2}\sin\theta_{l,l} + \frac{l_r}{2}\sin\theta_{l,r} 
+\label{eq:s_b}
+\end{equation}
+
+式 \ref{eq:s}、\ref{eq:h_b}、\ref{eq:s_li}、\ref{eq:h_li}、\ref{eq:phi}、\ref{eq:s_b} 对时间分别求一/二阶导
+
+\begin{equation}
+\dot{s} = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) 
+\label{eq:ds}
 \end{equation}
 
 \begin{equation}
-\dot{\phi} = \frac{R_w}{2R_l}(-\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\dot{\theta}_{l,r} \tag{2.11}
+\ddot{s} = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) 
+\label{eq:dds}
 \end{equation}
 
 \begin{equation}
-\ddot{\phi} = \frac{R_w}{2R_l}(-\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\ddot{\theta}_{l,r} + \frac{l_l}{2R_l}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2R_l}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.12}
+\dot{\phi} = \frac{R_w}{2R_l}(-\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\dot{\theta}_{l,r} 
 \end{equation}
 
 \begin{equation}
-\dot{s}_b = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r} \tag{2.13}
+\ddot{\phi} = \frac{R_w}{2R_l}(-\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\ddot{\theta}_{l,r} + \frac{l_l}{2R_l}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2R_l}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{s}_b = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.14}
+\dot{s}_b = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r} 
 \end{equation}
 
 \begin{equation}
-\dot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r} \tag{2.15}
+\ddot{s}_b = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\ddot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.16}
+\dot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r} 
 \end{equation}
 
 \begin{equation}
-\dot{s}_{l,i} = R_w\dot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\dot{\theta}_{l,i} \tag{2.17}
+\ddot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\ddot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{s}_{l,i} = R_w\ddot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\ddot{\theta}_{l,i} - l_{w,i}\sin\theta_{l,i}\dot{\theta}_{l,i}^2 \tag{2.18}
+\dot{s}_{l,i} = R_w\dot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\dot{\theta}_{l,i} 
 \end{equation}
 
 \begin{equation}
-\dot{h}_{l,i} = \dot{h}_b + l_{b,i}\sin\theta_{l,i}\dot{\theta}_{l,i} \tag{2.19}
+\ddot{s}_{l,i} = R_w\ddot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\ddot{\theta}_{l,i} - l_{w,i}\sin\theta_{l,i}\dot{\theta}_{l,i}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{h}_{l,i} = \ddot{h}_b + l_{b,i}\sin\theta_{l,i}\ddot{\theta}_{l,i} + l_{b,i}\cos\theta_{l,i}\dot{\theta}_{l,i}^2 \tag{2.20}
+\dot{h}_{l,i} = \dot{h}_b + l_{b,i}\sin\theta_{l,i}\dot{\theta}_{l,i} 
+\end{equation}
+
+\begin{equation}
+\ddot{h}_{l,i} = \ddot{h}_b + l_{b,i}\sin\theta_{l,i}\ddot{\theta}_{l,i} + l_{b,i}\cos\theta_{l,i}\dot{\theta}_{l,i}^2 
 \end{equation}
 
 \section{动力学模型}
@@ -307,47 +317,47 @@ s_b = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) + \frac{l_l}{2}\sin\theta_{l,l}
 
 对于左右驱动轮（$i = l, r$）
 \begin{equation}
-m_w R_w \ddot{\theta}_{w,i} = f_i - F_{ws,i} \tag{3.1}
+m_w R_w \ddot{\theta}_{w,i} = f_i - F_{ws,i} 
 \end{equation}
 
 \begin{equation}
-I_w \ddot{\theta}_{w,i} = T_{w,i} - f_i R_w \tag{3.2}
+I_w \ddot{\theta}_{w,i} = T_{w,i} - f_i R_w
 \end{equation}
 
 对于左右腿（$i = l, r$）
 \begin{equation}
-m_l \ddot{s}_{l,i} = F_{ws,i} - F_{bs,i} \tag{3.3}
+m_l \ddot{s}_{l,i} = F_{ws,i} - F_{bs,i} 
 \end{equation}
 
 \begin{equation}
-m_l \ddot{h}_{l,i} = F_{wh,i} - F_{bh,i} - m_l g \tag{3.4}
+m_l \ddot{h}_{l,i} = F_{wh,i} - F_{bh,i} - m_l g 
 \end{equation}
 
 \begin{equation}
-I_{l,i} \ddot{\theta}_{l,i} = (F_{wh,i} l_{w,i} + F_{bh,i} l_{b,i}) \sin\theta_{l,i} - (F_{ws,i} l_{w,i} + F_{bs,i} l_{b,i}) \cos\theta_{l,i} - T_{w,i} + T_{b,i} \tag{3.5}
+I_{l,i} \ddot{\theta}_{l,i} = (F_{wh,i} l_{w,i} + F_{bh,i} l_{b,i}) \sin\theta_{l,i} - (F_{ws,i} l_{w,i} + F_{bs,i} l_{b,i}) \cos\theta_{l,i} - T_{w,i} + T_{b,i} 
 \end{equation}
 
 对于机体
 \begin{equation}
-m_b \ddot{s}_b = F_{bs,l} + F_{bs,r} \tag{3.6}
+m_b \ddot{s}_b = F_{bs,l} + F_{bs,r} 
 \end{equation}
 
 \begin{equation}
-m_b \ddot{h}_b = F_{bh,l} + F_{bh,r} - m_b g \tag{3.7}
+m_b \ddot{h}_b = F_{bh,l} + F_{bh,r} - m_b g 
 \end{equation}
 
 \begin{equation}
-I_b \ddot{\theta}_b = -(T_{b,l} + T_{b,r}) - (F_{bs,l} + F_{bs,r}) l_c \cos\theta_b + (F_{bh,l} + F_{bh,r}) l_c \sin\theta_b \tag{3.8}
+I_b \ddot{\theta}_b = -(T_{b,l} + T_{b,r}) - (F_{bs,l} + F_{bs,r}) l_c \cos\theta_b + (F_{bh,l} + F_{bh,r}) l_c \sin\theta_b
 \end{equation}
 
 机器人整体偏航（yaw）方向旋转
 \begin{equation}
-I_z \ddot{\phi} = (-f_l + f_r) R_l \tag{3.9}
+I_z \ddot{\phi} = (-f_l + f_r) R_l 
 \end{equation}
 
 左右腿支持力相等
 \begin{equation}
-F_{wh,l} = F_{wh,r} \tag{3.10}
+F_{wh,l} = F_{wh,r} 
 \end{equation}
 
 本节建立轮腿机构的位置与速度映射关系，为后续控制器设计提供基础。

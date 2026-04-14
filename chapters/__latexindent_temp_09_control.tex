@@ -187,3 +187,86 @@ A_{cl}^T P + P A_{cl} = -Q
 \end{equation}
 
 由于系统已证明为完全可控，对于任意给定的半正定状态权重矩阵 $Q$ 和正定控制权重矩阵 $R$，必然存在唯一正定解 $P$，使得通过 $K = R^{-1}B^T P$ 得到的闭环矩阵 $A_{cl}$ 的所有特征值均位于左半复平面。由此，通过 LQR 等状态反馈控制，开环不稳定的倒立摆系统能够被镇定，实现闭环渐近稳定。
+
+\section{电缆通道检测机器人的控制方案设计}
+基于上述对一阶倒立摆模型的分析，我们设计了一个基于状态反馈的控制方案。具体是基于LQR控制算法实现对机器人状态的反馈控制，LQR输出为轮电机扭矩以及腿对底盘的等效力矩。
+
+然后通过VMC（Virtual Model Control）方法将腿对底盘的等效力和等效力矩转化为两个关节电机的控制输入。
+
+具体步骤如下：
+
+1. 选择合适的状态权重矩阵 $Q$ 和控制权重矩阵 $R$，以平衡系统状态误差和控制输入的大小。
+
+2. 通过求解连续代数黎卡提方程得到最优状态反馈增益矩阵 $K$。
+
+3. 实现控制律 $u = -K\mathbf{x}$，将系统状态反馈到控制输入中，以实现对系统的稳定控制。
+
+\section{控制器设计}
+机器人控制解耦为运动控制（Locomotion Controller）和腿部控制（Leg Controller）两部分。运动控制器通过调节驱动轮转矩和腿部关节转矩使机器人保持平衡和控制机器人移动、旋转；腿部控制器通过调节腿部支持力控制腿长，使机器人保持滚转（roll）方向稳定，并起到主动悬挂的作用。
+
+\subsection{运动控制器 (Locomotion Controller)}
+根据状态空间模型设计状态反馈控制器
+
+状态反馈控制器
+\begin{equation}
+u = K_{4 \times 10}(x_d - x) 
+\end{equation}
+
+状态反馈矩阵 $K$ 通过 Linear Quadratic Regulator (LQR) 计算得到，代价函数
+\begin{equation}
+J = \int_{0}^{\infty} (x^T Q x + u^T R u) dt 
+\end{equation}
+
+根据 LQR 可以得到状态反馈矩阵 $K$
+\begin{equation}
+K = R^{-1} B^T P 
+\end{equation}
+
+其中 $P$ 满足 Riccati 方程
+\begin{equation}
+A^T P + P A - P B R^{-1} B^T P + Q = 0 
+\end{equation}
+
+式 (3.4) 中，$A, B$ 是关于腿长 $l$ 的函数，为了降低运算量，在工作空间内采用多项式拟合的方式得到状态反馈矩阵 $K$
+\begin{equation}
+K(l_l, l_r) = K_{K,1} + K_{K,2} l_l + K_{K,3} l_l^2 + K_{K,4} l_r + K_{K,5} l_r^2 + K_{K,6} l_l l_r 
+\end{equation}
+
+\subsection{腿部控制器 (Leg Controller)}
+控制目标：调节腿部支持力控制左右腿长度，使机体保持特定高度 \& 滚转角，并起到悬挂减震的作用
+
+输入：机体目标滚转角(roll) \& 目标腿长(平均值) $(\psi_d, l_d)$
+
+输出：左右腿支持力 $(F_{bl,l}, F_{bl,r})$
+
+反馈：机体滚转角 \& 左右腿长度 $(\psi, l_l, l_r)$
+
+控制器：单环PID控制（PD模拟弹簧阻尼系统，消除前馈误差）+ 前馈（重力+侧向惯性力矩补偿）
+
+重力补偿前馈
+\begin{equation}
+F_{ff,gravity} = \left(\frac{1}{2}m_b + \eta m_l\right)g 
+\end{equation}
+
+侧向惯性力矩补偿前馈
+\begin{equation}
+F_{ff,inertial} = \left(\frac{1}{2}m_b + \eta m_l\right) \frac{l}{2} \ddot{\psi} 
+\end{equation}
+
+最终左右腿支持力
+\begin{equation}
+\begin{bmatrix}
+F_{bl,l} \\
+F_{bl,r}
+\end{bmatrix} = 
+\begin{bmatrix}
+1 & 1 & 1 & -1 \\
+-1 & 1 & 1 & 1
+\end{bmatrix}
+\begin{bmatrix}
+F_\psi \\
+F_l \\
+F_{ff,gravity} \\
+F_{ff,inertial}
+\end{bmatrix}
+\end{equation}

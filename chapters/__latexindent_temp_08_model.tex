@@ -135,8 +135,6 @@
     % 水平力 (红色)
     \draw[->, red, thick] (BodyCenter) -- ++(1.5, 0) node[below] {$F_{bs,l}$};
     
-    % **用户要求修改**的旋转力矩 T_{bl} (顺时针，使用 negative delta angle 实现)
-    % 从左下方 (225:0.4) 顺时针画 $90^\circ$ 到左上方 (135:0.4)
     \draw[->] ($(BodyCenter) + (225:0.4)$) node[below left=1pt] {$T_{bl}$} arc[start angle=225, delta angle=-90, radius=0.4];
 
     % --- 尺寸标注 ---
@@ -156,7 +154,7 @@
 
 \end{tikzpicture}
 
-\subsection{变量定义}
+\section{变量定义}
 
 \renewcommand{\arraystretch}{1.3}
 \begin{longtable}{>{\centering\arraybackslash}p{0.28\textwidth} >{\centering\arraybackslash}p{0.48\textwidth} >{\centering\arraybackslash}p{0.20\textwidth}}
@@ -218,87 +216,97 @@
 根据变量、参数定义和几何关系得到系统的运动学方程，进而解得各变量的表达式
 
 \begin{equation}
-s = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) \tag{2.1}
+s = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) 
+\label{eq:s}
 \end{equation}
 
 \begin{equation}
-h_b = \frac{l_l}{2}\cos\theta_{l,l} + \frac{l_r}{2}\cos\theta_{l,r} \tag{2.2}
+h_b = \frac{l_l}{2}\cos\theta_{l,l} + \frac{l_r}{2}\cos\theta_{l,r} 
+\label{eq:h_b}
 \end{equation}
 
 \begin{equation}
-s_{l,i} = R_w\theta_{w,i} + l_{w,i}\sin\theta_{l,i} \tag{2.3}
+s_{l,i} = R_w\theta_{w,i} + l_{w,i}\sin\theta_{l,i}
+\label{eq:s_li}
 \end{equation}
 
 \begin{equation}
-h_{l,i} = h_b - l_{b,i}\cos\theta_{l,i} \tag{2.4}
+h_{l,i} = h_b - l_{b,i}\cos\theta_{l,i} 
+\label{eq:h_li}
 \end{equation}
 
 \begin{equation}
-R_w\theta_{w,l} = s_b - R_l\phi - l_l\sin\theta_{l,l} \tag{2.5}
+R_w\theta_{w,l} = s_b - R_l\phi - l_l\sin\theta_{l,l} 
+\label{eq:theta_wl}
 \end{equation}
 
 \begin{equation}
-R_w\theta_{w,r} = s_b + R_l\phi - l_r\sin\theta_{l,r} \tag{2.6}
+R_w\theta_{w,r} = s_b + R_l\phi - l_r\sin\theta_{l,r}
+\label{eq:theta_wr}
 \end{equation}
 
-联立式 (2.5)(2.6)
+联立式 \ref{eq:theta_wl} 和 \ref{eq:theta_wr} 可解得 $s_b$ 和 $\phi$ 的表达式：
 
 \begin{equation}
-\phi = \frac{R_w}{2R_l}(-\theta_{w,l} + \theta_{w,r}) - \frac{l_l}{2R_l}\sin\theta_{l,l} + \frac{l_r}{2R_l}\sin\theta_{l,r} \tag{2.7}
-\end{equation}
-
-\begin{equation}
-s_b = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) + \frac{l_l}{2}\sin\theta_{l,l} + \frac{l_r}{2}\sin\theta_{l,r} \tag{2.8}
-\end{equation}
-
-式 (2.1)(2.2)(2.3)(2.4)(2.7)(2.8) 对时间分别求一/二阶导
-
-\begin{equation}
-\dot{s} = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) \tag{2.9}
+\phi = \frac{R_w}{2R_l}(-\theta_{w,l} + \theta_{w,r}) - \frac{l_l}{2R_l}\sin\theta_{l,l} + \frac{l_r}{2R_l}\sin\theta_{l,r} 
+\label{eq:phi}
 \end{equation}
 
 \begin{equation}
-\ddot{s} = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) \tag{2.10}
+s_b = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) + \frac{l_l}{2}\sin\theta_{l,l} + \frac{l_r}{2}\sin\theta_{l,r} 
+\label{eq:s_b}
+\end{equation}
+
+式 \ref{eq:s}、\ref{eq:h_b}、\ref{eq:s_li}、\ref{eq:h_li}、\ref{eq:phi}、\ref{eq:s_b} 对时间分别求一/二阶导
+
+\begin{equation}
+\dot{s} = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) 
+\label{eq:ds}
 \end{equation}
 
 \begin{equation}
-\dot{\phi} = \frac{R_w}{2R_l}(-\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\dot{\theta}_{l,r} \tag{2.11}
+\ddot{s} = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) 
+\label{eq:dds}
 \end{equation}
 
 \begin{equation}
-\ddot{\phi} = \frac{R_w}{2R_l}(-\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\ddot{\theta}_{l,r} + \frac{l_l}{2R_l}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2R_l}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.12}
+\dot{\phi} = \frac{R_w}{2R_l}(-\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\dot{\theta}_{l,r} 
 \end{equation}
 
 \begin{equation}
-\dot{s}_b = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r} \tag{2.13}
+\ddot{\phi} = \frac{R_w}{2R_l}(-\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) - \frac{l_l}{2R_l}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2R_l}\cos\theta_{l,r}\ddot{\theta}_{l,r} + \frac{l_l}{2R_l}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2R_l}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{s}_b = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.14}
+\dot{s}_b = \frac{R_w}{2}(\dot{\theta}_{w,l} + \dot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r} 
 \end{equation}
 
 \begin{equation}
-\dot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r} \tag{2.15}
+\ddot{s}_b = \frac{R_w}{2}(\ddot{\theta}_{w,l} + \ddot{\theta}_{w,r}) + \frac{l_l}{2}\cos\theta_{l,l}\ddot{\theta}_{l,l} + \frac{l_r}{2}\cos\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\ddot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r}^2 \tag{2.16}
+\dot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\dot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\dot{\theta}_{l,r} 
 \end{equation}
 
 \begin{equation}
-\dot{s}_{l,i} = R_w\dot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\dot{\theta}_{l,i} \tag{2.17}
+\ddot{h}_b = -\frac{l_l}{2}\sin\theta_{l,l}\ddot{\theta}_{l,l} - \frac{l_r}{2}\sin\theta_{l,r}\ddot{\theta}_{l,r} - \frac{l_l}{2}\cos\theta_{l,l}\dot{\theta}_{l,l}^2 - \frac{l_r}{2}\cos\theta_{l,r}\dot{\theta}_{l,r}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{s}_{l,i} = R_w\ddot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\ddot{\theta}_{l,i} - l_{w,i}\sin\theta_{l,i}\dot{\theta}_{l,i}^2 \tag{2.18}
+\dot{s}_{l,i} = R_w\dot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\dot{\theta}_{l,i} 
 \end{equation}
 
 \begin{equation}
-\dot{h}_{l,i} = \dot{h}_b + l_{b,i}\sin\theta_{l,i}\dot{\theta}_{l,i} \tag{2.19}
+\ddot{s}_{l,i} = R_w\ddot{\theta}_{w,i} + l_{w,i}\cos\theta_{l,i}\ddot{\theta}_{l,i} - l_{w,i}\sin\theta_{l,i}\dot{\theta}_{l,i}^2 
 \end{equation}
 
 \begin{equation}
-\ddot{h}_{l,i} = \ddot{h}_b + l_{b,i}\sin\theta_{l,i}\ddot{\theta}_{l,i} + l_{b,i}\cos\theta_{l,i}\dot{\theta}_{l,i}^2 \tag{2.20}
+\dot{h}_{l,i} = \dot{h}_b + l_{b,i}\sin\theta_{l,i}\dot{\theta}_{l,i} 
+\end{equation}
+
+\begin{equation}
+\ddot{h}_{l,i} = \ddot{h}_b + l_{b,i}\sin\theta_{l,i}\ddot{\theta}_{l,i} + l_{b,i}\cos\theta_{l,i}\dot{\theta}_{l,i}^2 
 \end{equation}
 
 \section{动力学模型}
@@ -309,47 +317,47 @@ s_b = \frac{R_w}{2}(\theta_{w,l} + \theta_{w,r}) + \frac{l_l}{2}\sin\theta_{l,l}
 
 对于左右驱动轮（$i = l, r$）
 \begin{equation}
-m_w R_w \ddot{\theta}_{w,i} = f_i - F_{ws,i} \tag{3.1}
+m_w R_w \ddot{\theta}_{w,i} = f_i - F_{ws,i} 
 \end{equation}
 
 \begin{equation}
-I_w \ddot{\theta}_{w,i} = T_{w,i} - f_i R_w \tag{3.2}
+I_w \ddot{\theta}_{w,i} = T_{w,i} - f_i R_w
 \end{equation}
 
 对于左右腿（$i = l, r$）
 \begin{equation}
-m_l \ddot{s}_{l,i} = F_{ws,i} - F_{bs,i} \tag{3.3}
+m_l \ddot{s}_{l,i} = F_{ws,i} - F_{bs,i} 
 \end{equation}
 
 \begin{equation}
-m_l \ddot{h}_{l,i} = F_{wh,i} - F_{bh,i} - m_l g \tag{3.4}
+m_l \ddot{h}_{l,i} = F_{wh,i} - F_{bh,i} - m_l g 
 \end{equation}
 
 \begin{equation}
-I_{l,i} \ddot{\theta}_{l,i} = (F_{wh,i} l_{w,i} + F_{bh,i} l_{b,i}) \sin\theta_{l,i} - (F_{ws,i} l_{w,i} + F_{bs,i} l_{b,i}) \cos\theta_{l,i} - T_{w,i} + T_{b,i} \tag{3.5}
+I_{l,i} \ddot{\theta}_{l,i} = (F_{wh,i} l_{w,i} + F_{bh,i} l_{b,i}) \sin\theta_{l,i} - (F_{ws,i} l_{w,i} + F_{bs,i} l_{b,i}) \cos\theta_{l,i} - T_{w,i} + T_{b,i} 
 \end{equation}
 
 对于机体
 \begin{equation}
-m_b \ddot{s}_b = F_{bs,l} + F_{bs,r} \tag{3.6}
+m_b \ddot{s}_b = F_{bs,l} + F_{bs,r} 
 \end{equation}
 
 \begin{equation}
-m_b \ddot{h}_b = F_{bh,l} + F_{bh,r} - m_b g \tag{3.7}
+m_b \ddot{h}_b = F_{bh,l} + F_{bh,r} - m_b g 
 \end{equation}
 
 \begin{equation}
-I_b \ddot{\theta}_b = -(T_{b,l} + T_{b,r}) - (F_{bs,l} + F_{bs,r}) l_c \cos\theta_b + (F_{bh,l} + F_{bh,r}) l_c \sin\theta_b \tag{3.8}
+I_b \ddot{\theta}_b = -(T_{b,l} + T_{b,r}) - (F_{bs,l} + F_{bs,r}) l_c \cos\theta_b + (F_{bh,l} + F_{bh,r}) l_c \sin\theta_b
 \end{equation}
 
 机器人整体偏航（yaw）方向旋转
 \begin{equation}
-I_z \ddot{\phi} = (-f_l + f_r) R_l \tag{3.9}
+I_z \ddot{\phi} = (-f_l + f_r) R_l 
 \end{equation}
 
 左右腿支持力相等
 \begin{equation}
-F_{wh,l} = F_{wh,r} \tag{3.10}
+F_{wh,l} = F_{wh,r} 
 \end{equation}
 
 本节建立轮腿机构的位置与速度映射关系，为后续控制器设计提供基础。
@@ -514,54 +522,64 @@ def coef(expr, sym):
 化简得
 % 方程 (3.13)
 \begin{equation}
-\begin{aligned}
-\frac{1}{2R_w}\Bigl(
--R_w \Bigl[ \ddot{\theta}_{l,l} (l_{bl} m_b + l_{wl} m_b + 2l_{wl} m_l)
-+ \ddot{\theta}_{l,r} (l_{br} m_b + l_{wr} m_b + 2l_{wr} m_l) \Bigr] \\
-&\qquad + 2T_{lwl} + 2T_{lwr}
-- (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) \Bigl[ 2I_w + R_w^2 (m_b + 2m_l + 2m_w) \Bigr]
-\Bigr) ={}& 0
-\end{aligned}
+\resizebox{0.98\linewidth}{!}{$
+\frac{-R_w \left[ \ddot{\theta}_{l,l} (l_{bl} m_b + l_{wl} m_b + 2l_{wl} m_l) + \ddot{\theta}_{l,r} (l_{br} m_b + l_{wr} m_b + 2l_{wr} m_l) \right] + 2T_{lwl} + 2T_{lwr} - (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) \left[ 2I_w + R_w^2 (m_b + 2m_l + 2m_w) \right]}{2R_w} = 0
+$}
+\label{eq:x_y_move}
 \end{equation}
 
 % 方程 (3.14)
 \begin{equation}
-\begin{aligned}
-\frac{1}{R_w}\Bigl(
-R_w \bigl( I_b \ddot{\theta}_b + T_{bll} + T_{blr} + \ddot{\theta}_{l,l} l_c l_{wl} m_l
-+ \ddot{\theta}_{l,r} l_c l_{wr} m_l - g l_c m_b \theta_b \bigr) \\
-&\qquad - (T_{lwl} + T_{lwr}) l_c
-+ (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) l_c \Bigl[ I_w + R_w^2 (m_l + m_w) \Bigr]
-\Bigr) ={}& 0
-\end{aligned}
+\resizebox{0.98\linewidth}{!}{$
+\frac{R_w \left( I_b \ddot{\theta}_b + T_{bll} + T_{blr} + \ddot{\theta}_{l,l} l_c l_{wl} m_l + \ddot{\theta}_{l,r} l_c l_{wr} m_l - g l_c m_b \theta_b \right) - (T_{lwl} + T_{lwr}) l_c + (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) l_c \left[ I_w + R_w^2 (m_l + m_w) \right]}{R_w} = 0
+$}
+\label{eq:pitch_move}
 \end{equation}
 
 % 方程 (3.15)
 \begin{equation}
-\begin{aligned}
-\frac{1}{2R_l R_w}\Bigl(
-I_z R_w \Bigl[ -\ddot{\theta}_{l,l}(l_{bl} + l_{wl}) + \ddot{\theta}_{l,r}(l_{br} + l_{wr}) \Bigr] \\
-&\qquad + 2R_l^2 (T_{lwl} - T_{lwr})
-+ (\ddot{\theta}_{wr} - \ddot{\theta}_{wl}) (2I_w R_l^2 + I_z R_w^2)
-\Bigr) ={}& 0
-\end{aligned}
+\resizebox{0.98\linewidth}{!}{$
+\frac{I_z R_w \left[ -\ddot{\theta}_{l,l}(l_{bl} + l_{wl}) + \ddot{\theta}_{l,r}(l_{br} + l_{wr}) \right] + 2R_l^2 (T_{lwl} - T_{lwr}) + (\ddot{\theta}_{wr} - \ddot{\theta}_{wl}) (2I_w R_l^2 + I_z R_w^2)}{2R_l R_w} = 0
+$}
+\label{eq:yaw_move}
 \end{equation}
 
 这三个方程分别从系统的平动、俯仰和偏航三个自由度出发，揭示了轮足机器人在复杂动力学耦合下的运动规律，为后续的控制器设计提供了理论基础。以下将对每个方程的物理意义进行详细解析。
-3.3 纵向平移运动学平衡方程\ref{eq:longitudinal}
-本节构建了轮足机器人在纵向（$x$轴方向）的平移加速度与驱动力矩之间的映射关系。根据达朗贝尔原理（D'Alembert's Principle），系统在前进方向上的广义力平衡方程可表述为：$$\sum F_x = M_{eq} \cdot a_x + F_{coupling}$$等效质量与转动惯量折算：方程 (3.13) 中的系数项 $2I_w + R_{w}^{2}(m_b + 2m_l + 2m_w)$ 反映了系统的等效平移惯量。其中不仅包含机体、腿部及轮组的静质量，还通过轮径 $R_w$ 将驱动轮的转动惯量 $I_w$ 折算至线加速度维度。这体现了系统在平移过程中，能量在平动动能与转动动能之间的耦合分布。腿部运动耦合（Dynamic Coupling）：项 $\ddot{\theta}_{l,l}$ 与 $\ddot{\theta}_{l,r}$ 的系数代表了腿部摆动产生的惯性力对底盘平移的影响。当腿部角度发生剧烈变化时，其质心位置的水平加速度会通过关节反作用力直接作用于底盘。驱动输入：$2T_{lw}$ 为系统的主动控制量，代表左右电机在接触点产生的等效牵引力。
-3.4 俯仰轴（绕横轴）动力学平衡方程
-俯仰方向的稳定性是轮足机器人平衡控制的核心，该方程本质上是一个线性化后的倒立摆模型（Inverted Pendulum Model）。姿态动力学项：$I_b \ddot{\theta}_b$ 描述了机体绕其质心的旋转惯性。不稳定重力矩（Gravity-induced Moment）：$-g l_c m_b \theta_b$ 项具有正反馈特性，代表了重力在机体偏离平衡位置时产生的倾覆力矩。在线性化分析中，该项决定了系统的开环不稳定性，是控制器设计时需要补偿的主要干扰。位移-姿态耦合项：$\ddot{\theta}_{w}$ 项的引入体现了“加速度诱导力矩”效应。当底盘产生水平加速度时，由于机体质心与轮轴存在高度差 $l_c$，会在俯仰方向产生显著的惯性耦合力矩。这也是实现“以位移保平衡”控制策略的物理基础。
-3.5 偏航轴（绕竖直轴）动力学平衡方程
-偏航（Yaw）方程描述了机器人 heading 角的演化逻辑，主要涉及空间动力学的角动量守恒与差速驱动原理。偏航惯量矩阵：系数 $2I_w R_{l}^{2} + I_z R_{w}^{2}$ 定义了系统绕几何中心转动的总等效惯量。它综合考虑了机体绕 $Z$ 轴的转动惯量 $I_z$ 以及左右轮组在差速转动时的旋转动量。差速驱动逻辑：该方程的核心输入为 $(T_{lw,l} - T_{lw,r})$。通过建立电机力矩差与偏航加速度 $\ddot{\psi}$ 的线性关系，将复杂的地面摩擦力约束简化为由力矩差驱动的二阶系统，简化了偏航控制器的解耦设计。非对称干扰补偿：腿部伸缩或摆动加速度的非对称性（$\ddot{\theta}_{l,r} - \ddot{\theta}_{l,l}$）会导致偏航干扰。方程中对应的系数项为控制算法提供了前馈补偿的理论依据，以确保机器人在高速直线行驶中不发生偏离。
+
+\subsection{纵向平移运动学平衡方程(方程\ref{eq:x_y_move})}
+
+本节构建了轮足机器人在纵向（$x$轴方向）的平移加速度与驱动力矩之间的映射关系。根据达朗贝尔原理（D'Alembert's Principle），系统在前进方向上的广义力平衡方程可表述为：$$\sum F_x = M_{eq} \cdot a_x + F_{coupling}$$
+
+等效质量与转动惯量折算：方程 (3.13) 中的系数项 $2I_w + R_{w}^{2}(m_b + 2m_l + 2m_w)$ 反映了系统的等效平移惯量。其中不仅包含机体、腿部及轮组的静质量，还通过轮径 $R_w$ 将驱动轮的转动惯量 $I_w$ 折算至线加速度维度。这体现了系统在平移过程中，能量在平动动能与转动动能之间的耦合分布。
+
+腿部运动耦合（Dynamic Coupling）：项 $\ddot{\theta}_{l,l}$ 与 $\ddot{\theta}_{l,r}$ 的系数代表了腿部摆动产生的惯性力对底盘平移的影响。当腿部角度发生剧烈变化时，其质心位置的水平加速度会通过关节反作用力直接作用于底盘。
+
+驱动输入：$2T_{lw}$ 为系统的主动控制量，代表左右电机在接触点产生的等效牵引力。
+
+\subsection{俯仰轴动力学平衡方程(方程\ref{eq:pitch_move})}
+
+俯仰方向的稳定性是轮足机器人平衡控制的核心，该方程本质上是一个线性化后的倒立摆模型（Inverted Pendulum Model）。
+
+姿态动力学项：$I_b \ddot{\theta}_b$ 描述了机体绕其质心的旋转惯性。
+
+不稳定重力矩（Gravity-induced Moment）：$-g l_c m_b \theta_b$ 项具有正反馈特性，代表了重力在机体偏离平衡位置时产生的倾覆力矩。在线性化分析中，该项决定了系统的开环不稳定性，是控制器设计时需要补偿的主要干扰。
+
+位移-姿态耦合项：$\ddot{\theta}_{w}$ 项的引入体现了“加速度诱导力矩”效应。当底盘产生水平加速度时，由于机体质心与轮轴存在高度差 $l_c$，会在俯仰方向产生显著的惯性耦合力矩。这也是实现“以位移保平衡”控制策略的物理基础。
+
+\subsection{偏航轴动力学平衡方程(方程\ref{eq:yaw_move})}
+
+偏航（Yaw）方程描述了机器人 heading 角的演化逻辑，主要涉及空间动力学的角动量守恒与差速驱动原理。
+
+偏航惯量矩阵：系数 $2I_w R_{l}^{2} + I_z R_{w}^{2}$ 定义了系统绕几何中心转动的总等效惯量。它综合考虑了机体绕 $Z$ 轴的转动惯量 $I_z$ 以及左右轮组在差速转动时的旋转动量。
+
+差速驱动逻辑：该方程的核心输入为 $(T_{lw,l} - T_{lw,r})$。通过建立电机力矩差与偏航加速度 $\ddot{\psi}$ 的线性关系，将复杂的地面摩擦力约束简化为由力矩差驱动的二阶系统，简化了偏航控制器的解耦设计。
+
+非对称干扰补偿：腿部伸缩或摆动加速度的非对称性（$\ddot{\theta}_{l,r} - \ddot{\theta}_{l,l}$）会导致偏航干扰。方程中对应的系数项为控制算法提供了前馈补偿的理论依据，以确保机器人在高速直线行驶中不发生偏离。
+
 \section{五连杆运动学模型与VMC}
 
 \subsection{五连杆运动学解算}
 
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.5\textwidth]{figures/five_bar.png}
-%   \caption{五连杆构型图解简化}
 \begin{figure}[H]
   \centering
   \begin{tikzpicture}[scale=1.2, >=stealth]
@@ -722,24 +740,10 @@ I_z R_w \Bigl[ -\ddot{\theta}_{l,l}(l_{bl} + l_{wl}) + \ddot{\theta}_{l,r}(l_{br
     \coordinate (C) at (2.2, 3.3);
 
     % 2. 计算交点 N
-    % N 是直线 AB 与 直线 BC/CD 延伸方向的交点？ 
-    % 观察原图，N 似乎是 AF 与 BC 的交点。我们先定义 F。
-    
-    % 3. 根据几何约束确定 F 和 E
-    % 约束 A: F 在 DE 上 (延长线上)
-    % 约束 B: CE // AF
-    % 约束 C: BC // DE
-    
-    % 定义辅助方向：DE 的方向即 BC 的方向（因为 BC // DE）
-    % 我们让 D, B, C 并不完全共线，但 DE 必须平行于 BC
-    \coordinate (F) at ($(D)!0.7!(A)$); % 假设 F 在 AD 连线上或附近，这里根据原图目测
-    % 重新调整 F 的位置以符合原图视觉：F 在 A 延伸出的某条线上
+    \coordinate (F) at ($(D)!0.7!(A)$); 
     \coordinate (F) at (2.7, 1.5);
     
-    % 根据 BC // DE，确定过 D 的直线方向
-    % 根据 CE // AF，确定 E 的位置
-    % 这里我们手动微调坐标以达到视觉平行，或者使用计算：
-    \coordinate (E) at ($(C) + (F) - (A)$); % 这是一个向量平移，确保矢量 CE = AF，从而平行且相等
+    \coordinate (E) at ($(C) + (F) - (A)$); 
     
     % 4. 计算 N 点 (AF 与 BC 的交点)
     \coordinate (N) at (intersection of A--F and B--C);
@@ -759,11 +763,6 @@ I_z R_w \Bigl[ -\ddot{\theta}_{l,l}(l_{bl} + l_{wl}) + \ddot{\theta}_{l,r}(l_{br
     \node [right] at (F) {F};
     \node [right] at (D) {D};
     \node [left] at (N) {N};
-
-    % 7. 验证平行（可选：画出辅助虚线或打印斜率）
-    % BC // DE 验证：
-    % \draw[red, dashed] (B) -- (C);
-    % \draw[red, dashed] (D) -- (E是算出来的，方向由BC决定);
 
 \end{tikzpicture}
 \caption{并联腿机构简图}

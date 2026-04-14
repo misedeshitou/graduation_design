@@ -3,10 +3,15 @@
 为了验证前一章设计的控制方案的有效性，我们选择了MATLAB/Simulink作为仿真平台。MATLAB提供了强大的数值计算能力和丰富的工具箱，Simulink则支持基于模型的设计和仿真，能够直观地构建系统模型并进行动态仿真。此外，我们还利用了Simscape Multibody模块来建立机器人动力学模型，并使用Reinforcement Learning Toolbox来实现基于深度强化学习的路径规划算法。
 \section{控制方案仿真设计}
 仿真设计分为以下几个步骤：
+
 1）建立机器人动力学模型：基于前一章的建模结果，我们在Simscape Multibody中构建了轮腿式机器人的动力学模型，包含底盘、腿部结构以及轮子等关键组件。
-2）实现控制算法：根据前一章设计的控制方案，我们在Simulink中实现了相应的控制算法，包括PID控制器和基于深度强化学习的路径规划算法。
-3）设置仿真场景：为了测试控制方案的性能，我们设计了多个仿真场景，包括平坦地面、带有障碍物的环境以及复杂地形等，以评估机器人在不同环境下的运动控制能力。
-4）运行仿真并收集数据：通过运行仿真，我们收集了机器人在不同场景下的运动轨迹、速度、加速度以及控制输入等数据，以便后续分析和评估控制方案的效果。
+
+2）实现控制算法：根据前一章设计的控制方案，我们在Simulink中实现了相应的控制算法，从LQR输出腿部等效力和力矩，再通过VMC转化到轮电机和关节电机的控制输入。
+
+3）设置仿真场景：为了测试控制方案的性能，本毕业设计设计了多个仿真场景，包括平坦地面、带有障碍物的环境，以评估机器人在不同环境下的运动控制能力。
+
+4）运行仿真并收集数据：通过运行仿真，我们收集了机器人在不同场景下的电机控制输入和状态量的输出数据。
+
 \section{控制框架设计}
 \begin{figure}[H]
   \centering
@@ -25,14 +30,14 @@
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.5\textwidth]{figures/model_simulink_outside.png}
+  \includegraphics[width=0.7\textwidth]{figures/model_simulink_outside.png}
   \caption{轮腿机器人建模外部接口}
   \label{fig:model-simulink-outside}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.5\textwidth]{figures/model_simulink_inside.png}
+  \includegraphics[width=0.7\textwidth]{figures/model_simulink_inside.png}
   \caption{轮腿机器人建模内部实现}
   \label{fig:model-simulink-inside}
 \end{figure}
@@ -45,9 +50,6 @@
 \end{figure}
 
 \subsection{lqr控制模块}
-\subsubsection{K矩阵求解}
-
-\subsubsection{lqr控制器实现}
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.3\textwidth]{figures/lqr_outside.png}
@@ -61,6 +63,8 @@
   \caption{lqr控制器内部实现}
   \label{fig:lqr-inside}
 \end{figure}
+
+LQR控制模块通过系统状态量的输入乘已经计算好的K矩阵该模块的输入包括机器人水平位移、水平位移速度、机器人yaw转角、yaw转角速度、腿部摆杆角度、腿部摆杆角速度、机体倾角、机体倾角速度状态量，输出腿部等效力矩和轮电机力矩。
 
 \subsection{状态量求解与VMC}
 \begin{figure}[H]
@@ -77,6 +81,7 @@
   \label{fig:state-and-vmc-inside}
 \end{figure}
 
+该模块的作用为通过 $\phi_1$、$\phi_4$，经过几何解算求得 $L_0$ 和 $\phi_0$，同时可再结合 $F_0$ 和 $T_p$ 通过 VMC 转化求得两个关节电机的控制输入。同时还通过雅各比矩阵求得 $\dot{\phi}_0$，便于后续继续求解腿角速度等。
 
 \subsubsection{五连杆运动学解算}
 
@@ -196,6 +201,38 @@ function d_phi0 = fcn(phi_1, phi_4, d_phi1, d_phi4)
 end
 \end{minted}
 
+\section{仿真条件设置}
+
+本仿真在MATLAB R2024a环境下进行，使用Simulink 10.0版本。仿真时间设置为10秒，求解器为ode45变步长。机器人初始状态设定为距离地面高度30cm处落下，随后在1s和5s时间点处给定速度激励1m/s和-1m/s。仿真场景包括前半段的平坦地面和连续四个高度为0.25米的障碍物，机器人需要从初始状态落下到起点并越过障碍物，期间保持机体稳定不发散。
+
+控制器参数设置如下：LQR权重矩阵$Q$设定为对状态量的单位矩阵，控制输入权重矩阵$R$设定为对控制输入的单位矩阵。仿真过程中，机器人需要根据控制器输出的力矩调整轮电机和关节电机的输入，以实现稳定的运动控制。
+\begin{minted}[breaklines,linenos,fontsize=\small]{matlab}
+%        s     ds     phi     dphi     theta_ll dtheta_ll theta_lr dtheta_lr theta_b dtheta_b
+lqr_Q = [10,    0,     0,      0,       0,       0,       0,      0,       0,       0;
+         0,    5,     0,      0,       0,       0,        0,       0,        0,       0;
+         0,    0,     10,      0,       0,       0,       0,      0,       0,       0;
+         0,    0,     0,      5,       0,       0,        0,       0,        0,       0;
+         0,    0,     0,      0,       1,       0,        0,       0,        0,       0;
+         0,    0,     0,      0,       0,       0.07,     0,       0,        0,       0;
+         0,    0,     0,      0,       0,       0,        1,       0,        0,       0;
+         0,    0,     0,      0,       0,       0,        0,       0.07,     0,       0;
+         0,    0,     0,      0,       0,       0,        0,       0,        10,       0;
+         0,    0,     0,      0,       0,       0,        0,       0,        0,      0.6];
+% 其中：
+% s       : 自然坐标系下机器人水平方向移动距离，单位：m，ds为其导数
+% phi     ：机器人水平方向移动时yaw偏航角度，dphi为其导数
+% theta_ll：左腿摆杆与竖直方向（自然坐标系z轴）夹角，dtheta_ll为其导数
+% theta_lr：右腿摆杆与竖直方向（自然坐标系z轴）夹角，dtheta_lr为其导数
+% theta_b ：机体与自然坐标系水平夹角，dtheta_b为其导数
+
+% 矩阵中，以下列分别对应：
+%        T_wl    T_wr     T_bl     T_br
+lqr_R = [20,      0,       0,       0;
+         0,      20,       0,       0;
+         0,      0,       10,       0;
+         0,      0,       0,       10];
+\end{minted}
+
 \section{仿真结果分析}
 \begin{figure}[H]
   \centering
@@ -222,23 +259,55 @@ end
   \label{fig:obstacle-4}
 \end{figure}
 
+
+\section{仿真结果分析}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/simulink_theta.png}
+  \caption{状态量腿角度变化曲线}
+  \label{fig:theta}
+\end{figure}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/simulink_dtheta.png}
+  \caption{状态量腿角速度变化曲线}
+  \label{fig:dtheta}
+\end{figure}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/simulink_x.png}
+  \caption{状态量机器人水平位移变化曲线}
+  \label{fig:x}
+\end{figure}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/simulink_theta_b.png}
+  \caption{状态量机体倾角变化曲线}
+  \label{fig:theta_b}
+\end{figure}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/simulink_dtheta_b.png}
+  \caption{状态量机体倾角速度变化曲线}
+  \label{fig:dtheta_b}
+\end{figure}
 由此可见，机器人能够成功地越过障碍物，并且在整个过程中保持稳定的姿态和运动轨迹。这表明我们设计的控制方案在仿真环境中是有效的，能够实现预期的运动控制目标。
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.5\textwidth]{figures/control_l_t.png}
+  \includegraphics[width=0.7\textwidth]{figures/control_l_t.png}
   \caption{越障中的轮电机输出力矩}
   \label{fig:torque_wheel}
 \end{figure}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.5\textwidth]{figures/control_l_t1.png}
+  \includegraphics[width=0.7\textwidth]{figures/control_l_t1.png}
   \caption{越障中的前关节电机输出力矩}
   \label{fig:torque_joint_front}
 \end{figure}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.5\textwidth]{figures/control_l_t4.png}
+  \includegraphics[width=0.7\textwidth]{figures/control_l_t4.png}
   \caption{越障中的后关节电机输出力矩}
   \label{fig:torque_joint_back}
 \end{figure}
