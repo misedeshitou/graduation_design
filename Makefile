@@ -12,7 +12,10 @@ ENGINES = -xelatex -lualatex
 ENGINE ?= -xelatex  # Default engine to XeLaTeX
 
 # Check for required programs
-REQUIRED_PROGRAMS := latexmk texcount
+REQUIRED_PROGRAMS := latexmk
+ifneq ($(filter wordcount, $(MAKECMDGOALS)), )
+	REQUIRED_PROGRAMS += texcount
+endif
 $(foreach prog,$(REQUIRED_PROGRAMS),\
     $(if $(shell which $(prog)),,$(error "$(prog) not found in PATH")))
 
