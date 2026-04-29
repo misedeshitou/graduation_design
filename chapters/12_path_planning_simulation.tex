@@ -302,6 +302,43 @@ SAC、TransSAC 等基于连续控制的算法均采用此模式。
 
 当双端进程竞争同一把锁（例如 Actor 和 Learner 同时尝试访问经验池）时，自旋锁机制使未获取锁的进程进入 \texttt{while True} 的高频轮询状态（休眠 $10^{-4}$ 秒级别），而非挂起等待。由于张量转移操作耗时极短，这种短效轮询机制在保证绝对数据安全的同时，将等待开销降到了最低。
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{figures/ASL_analysis.png}
+  \caption{ASL架构性能分析}
+  \label{fig:ASL-analysis}
+\end{figure}
+在分布式强化学习训练中，系统吞吐量、资源利用率与组件通信延迟是评估架构有效性的核心指标。图\ref{fig:ASL-analysis}给出了 Actor-Learner-Sharer（ASL）架构在 50 万步（$0.5 \times 10^6$ steps）训练周期内的性能曲线。结合曲线形态，可归纳为以下三点：
+\begin{enumerate}
+    \item 高效且解耦的并发吞吐量 (SPS \& BPS 分析)
+    ASL 架构的核心优势在于通过 Sharer（共享经验池）将数据采样（Actor）与梯度计算（Learner）进行物理与逻辑上的解耦。
+
+    \begin{itemize}
+        \item 数据采样率 (SPS - Steps Per Second): 图中 SPS 曲线在训练初期经历短暂的预热后，迅速攀升并稳定在 380 至 390 之间。这表明 Actor 进程组能够以极高的效率持续与环境进行交互。SPS 的稳步微升进一步证明了环境重置或缓存机制在长期运行中表现出良好的鲁棒性，未出现阻塞或内存泄漏等衰减现象。
+        \item 批处理更新率 (BPS - Batches Per Second): Learner 的 BPS 曲线在训练极早期（探索期）处于高位，随后迅速下降并稳定在 4 左右的水平。SPS 与 BPS 的独立稳定运行，有力证明了 ASL 架构成功打破了传统单进程 RL 中“采样等训练，训练等采样”的同步木桶效应，实现了 CPU（环境推理）与 GPU（梯度反向传播）算力的满载流水线作业。
+    \end{itemize}
+
+    \item 稳定的数据更新比 (UTD 分析)
+    UTD (Update-To-Data Ratio) 定义了网络更新次数与环境交互步数的比例，是控制强化学习训练节奏的关键超参数。
+
+    \begin{itemize}
+        \item 如图所示，UTD 曲线的形态与 BPS 高度一致，在经过初始的陡降后，长程稳定在较低的数值区间（约 2 至 3 左右）。
+        \item 学术意义： 这种低且稳定的 UTD 设定是针对异策略（Off-policy）算法（如 SAC）的典型优良特征。它保证了 Learner 不会因为过度消费旧数据而导致过拟合（Overfitting）或 Q 值高估，同时 Actor 源源不断地注入高新鲜度的数据，维持了探索与利用（Exploration vs. Exploitation）的动态平衡。
+    \end{itemize}
+
+    \item 异步通信与容忍延迟 (PolicyLagSteps 分析)
+    策略延迟（PolicyLagSteps）是衡量分布式架构通信开销与策略陈旧度（Staleness）的最关键指标，它记录了 Actor 当前使用的采样策略落后于 Learner 最新策略的步数。
+
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/buffer.png}
+  \caption{ASL架构性能分析}
+  \label{fig:buffer-analysis}
+\end{figure}
+由图\ref{fig:buffer-analysis} 可见，ASL 架构的共享数据中枢在训练过程中表现出极高的稳定性与效率：在横轴（Step）的最左侧，紫线几乎是垂直向上飙升的。这表明系统在训练初期就迅速填满了经验池，达到了预设的 100 万条转移数据的容量上限。随后，经验池的占用率曲线趋于平坦，稳定在 100\% 的水平，说明系统成功实现了环形覆盖机制，同时侧面印证了ASL系统的采集数据高效性。
+
 \subsubsection{复合引导奖励函数设计}
 为促使训练网络快速在探索期收敛出最优控制策略，模拟器内置了多维度的精细奖惩数学核算：
 \begin{itemize}
@@ -321,25 +358,27 @@ SAC、TransSAC 等基于连续控制的算法均采用此模式。
 \subsection{SAC串联transformer网络架构}
 \subsection{路径规划算法对比}
 采用100次独立随机初始化的测试场景，分别评估了 DWA、SAC 和 TransSAC 三种算法在路径规划任务中的表现。评测指标包括：
+\begin{itemize}
+    \item \texttt{ep\_steps}：平均每回合步数
 
-\texttt{ep\_steps}：平均每回合步数
+    统计\texttt{total\_steps / finished}，其中到达目标用真实步数，失败/超时按 500 次计罚。
 
-统计\texttt{total\_steps / finished}，其中到达目标用真实步数，失败/超时按 500 次计罚。
+    \item \texttt{ep\_r}：平均每回合总奖励
 
-\texttt{ep\_r}：平均每回合总奖励
+    统计方式是 \texttt{total\_r / finished}，统计成功回合数的平均总奖励。
 
-统计方式是 \texttt{total\_r / finished}，统计成功回合数的平均总奖励。
+    \item \texttt{arrival\_rate}：到达率
 
-\texttt{arrival\_rate}：到达率
-统计100次测试场景中成功回合次数，作为到达率的百分比。
+    统计100次测试场景中成功回合次数，作为到达率的百分比。
 
-\texttt{total\_score}：综合总分数
+    \item \texttt{total\_score}：综合总分数
 
-\hspace*{2em}步数分：$\texttt{normed\_ep\_steps} = (500-\texttt{ep\_steps})/(500-70)$
-
-\hspace*{2em}奖励分：$\texttt{normed\_ep\_r} = \texttt{ep\_r}/220$
-
-\hspace*{2em}综合分：$\texttt{normed\_total\_score} = (\texttt{normed\_ep\_steps} + \texttt{normed\_ep\_r} + \texttt{arrival\_rate})/3$
+    \begin{itemize}
+        \item 步数分：$\texttt{normed\_ep\_steps} = (500-\texttt{ep\_steps})/(500-70)$
+        \item 奖励分：$\texttt{normed\_ep\_r} = \texttt{ep\_r}/220$
+        \item 综合分：$\texttt{normed\_total\_score} = (\texttt{normed\_ep\_steps} + \texttt{normed\_ep\_r} + \texttt{arrival\_rate})/3$
+    \end{itemize}
+\end{itemize}
 
 对于DWA经典算法，测试结果如下：
 \begin{table}[H]
