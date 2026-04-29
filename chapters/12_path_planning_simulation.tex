@@ -2,92 +2,307 @@
 本章节仿真效果很多基于动画展示，不便于在论文中直接展示，相关仿真视频与源代码已上传至GitHub项目主页（\url{https://github.com/misedeshitou/ColorDynamic}）。
 
 \section{仿真环境介绍}
-本毕业设计的路径规划训练与验证采用轻量级开源强化学习环境 Sparrow 构建（开源项目原址：\url{https://github.com/XinJingHao/Sparrow-V2}）。该环境的设计理念为“麻雀虽小，五脏俱全”，不仅底层架构轻量高效，同时涵盖了丰富的物理和感知模拟。
 
-Sparrow 基于 Pygame 框架构建，主要模拟了一个配备二维激光雷达（2D Lidar）的差速双轮/阿克曼转向式机器人，在富含动态移动与静态随机障碍物的二维平面中执行点到点（Point-to-Point）的无碰撞导航任务。机器人的主要交互框架定义如下：
+本文路径规划算法的训练与测试均基于开源强化学习仿真平台 Sparrow（\url{https://github.com/XinJingHao/Sparrow-V2}）展开。Sparrow 以 Pygame 为渲染后端，在二维平面内模拟一台搭载激光雷达的差速轮式机器人，执行含动静态障碍物的点到点导航任务。其交互接口遵循标准 Gym 规范，主要包含以下三个要素：
+
 \begin{itemize}
-    \item \textbf{状态观测空间（Observation）}：系统输入包含传感器返回的几十条雷达离散测距点数据、机器人自身当前的线速度与角速度以及目标点相对于车体坐标系的距离和航向偏移角。
-    \item \textbf{动作输出空间（Action）}：由智能体输出连续或离散的控制指令，直接映射为机器人的目标线速度和转向角速度。
-    \item \textbf{任务目标（Objective）}：训练一个具备强泛化能力的智能体（Agent），在高度不确定的复杂动态随机环境中成功规避移动障碍物，以优化的路径和最短的时间安全抵达终点。
+    \item \textbf{观测空间}：包括激光雷达的离散测距序列、机器人当前线速度与角速度，以及目标点在车体坐标系下的相对距离与航向偏角。
+    \item \textbf{动作空间}：智能体输出线速度与角速度指令，支持离散和连续两种模式。
+    \item \textbf{任务目标}：在含随机障碍物的动态场景中，以尽量短的路径无碰撞地到达目标点。
 \end{itemize}
 
-选择 Sparrow 作为本课题核心仿真平台的考量主要集中在仿真效率与高度还原的物理逻辑两个方面：
+选用 Sparrow 的主要原因在于其训练效率高、物理建模贴近实际两点。
 
-\subsection{极具优势的仿真效率与泛化能力}
+\subsection{训练效率}
+
 \begin{enumerate}
-    \item \textbf{原生支持张量向量化（Vectorization）}：有别于传统采用循环单步运行的环境，Sparrow 完全基于 PyTorch 构建了底层逻辑。借助可自定义的超参数 $N$，环境允许同时拉起成百上千个平行的独立副本地图。所有的运动学积分、雷达模拟和碰撞检测都以矩阵运算的形式在 GPU 上并行处理，这使得强化学习算法的数据采样效率呈指数级跃升。
-    \item \textbf{端到端的高效数据流通（Data Flow）}：通常的物理引擎（如 Gazebo、Webots）需要在 CPU 上完成运算，再将观测结果拷贝传输至 GPU 供神经网络进行前向推理，这带来了巨大的通信开销。而 Sparrow 直接在显存内部生成深度网络所需的 Tensor 观测张量，实现了计算节点的无缝衔接。
-    \item \textbf{高度的域随机化机制（Domain Randomization）}：为了跨越从仿真应用到现实物理控制的差距（Sim2Real），环境源码被注入了极强的随机化逻辑。每轮任务重置时，环境会动态且随机地初始化障碍物的数量、形状、散布及其不规则移动速度；同时还支持在雷达扫描和底盘执行中施加高斯白噪声与控制迟滞。这种复杂性赋予了所训练出的大模型出色的抗扰动泛化能力。
+    \item \textbf{并行环境（Vectorization）}：Sparrow 底层基于 PyTorch 实现，支持通过超参数 $N$ 同时运行多个独立环境副本。运动学积分、雷达模拟与碰撞检测均以批量矩阵运算的形式在 GPU 上执行，显著提升了单位时间内的样本采集量。
+    \item \textbf{零拷贝数据流}：Gazebo、Webots 等传统仿真器在 CPU 端完成物理计算后，需将观测数据显式拷贝至 GPU 供网络推理，存在较大的通信开销。Sparrow 的观测张量直接在显存中生成，省去了跨设备传输步骤。
+    \item \textbf{域随机化（Domain Randomization）}：每轮 reset 时，环境随机化障碍物的数量、形状、位置及运动速度，并可在雷达读数和底盘执行层面叠加高斯噪声与控制延迟，有助于提升策略的 Sim2Real 迁移能力。
 \end{enumerate}
 
-\subsection{贴近底层的物理仿真逻辑}
+\subsection{物理建模}
+
 \begin{enumerate}
-    \item \textbf{惯性运动学模型模拟（Kinematics）}：该环境摒弃了指令即时响应的理想化设定，内置了一阶低通滤波器来模拟现实世界电机和轮式的物理迟滞与惯性特性。每一次状态更新的实际输出速度 $V_{\text{now}}$ 被描述为：
+    \item \textbf{一阶惯性运动学}：环境内置一阶低通滤波器模拟电机响应迟滞，实际速度 $V_{\text{now}}$ 的更新规则为：
     \begin{equation}
-        V_{\text{now}} = K \cdot V_{\text{previous}} + (1-K) \cdot V_{\text{target}}
+        V_{\text{now}} = K \cdot V_{\text{prev}} + (1-K) \cdot V_{\text{target}}
     \end{equation}
-    这说明即便输出了较大的刹车/加速控制动作 $V_{\text{target}}$，车体速度也不会发生瞬间跃变，有效倒逼算法需提前规划预留安全距离，高度吻合真实电缆机器人的电驱响应特征。
-    \item \textbf{像素级 GPU 并行雷达扫描（Lidar Scan）}：传统的二维避障常常调用耗时的计算几何库来求交点。Sparrow 巧妙地采用栅格/像素级编码来映射障碍物并模拟射线。环境会将雷达中心作为原点，利用高度并行的“烟花式”探照算法，通过张量加速同时向四周扩散计算数百条射线的首个触阻距离。这极大程度上平替并复刻了真实的激光雷达扫描应用情景。
+    即使发出较大的加减速指令，车体速度也不会瞬间跃变。本文训练时将滤波系数设为 $K=0.6$，以贴近真实电驱底盘的响应特性，同时促使策略网络学习提前减速等预判行为。
+    \item \textbf{栅格化雷达模拟}：传统方法通过计算几何求射线与障碍物的交点，计算量较大。Sparrow 将障碍物编码为像素栅格，以雷达中心为原点向各方向同步扩散射线，利用 GPU 并行计算每条射线的首个遮挡距离，在保证精度的同时大幅降低了计算耗时。
 \end{enumerate}
-为了极致还原真实环境中的控制延迟与电机响应物理特性，本毕业设计在实际训练中，将上述运动学滤波器系数特别设定为 $K=0.6$。这意味着当前的理想动作指令起初只有一部分会立即生效，剩余的速度增量需要逐渐克服旋转惯性，从而倒逼智能体自主学习平滑控制与提前预判。
 
-\subsection{动作空间与执行逻辑}
-针对不同的算法框架，该仿真环境支持智能体以离散（Discrete）或连续（Continuous）两种形式进行动作输出以实现路径规划。
+\subsection{动作空间}
 
-\subsubsection{离散动作空间选择}
-在离散控制模式下，动作空间被映射为 8 个预设的控制指令。这一映射表对应了机器人在不同线速度与角速度下的运动基元（见表 \ref{tab:discrete_action}）。这种设定适合如 DQN 等无法直接输出连续动作的传统强化学习算法。
+针对不同算法的需求，Sparrow 提供离散与连续两种动作模式。
+
+\subsubsection{离散动作空间}
+
+离散模式下，动作空间共包含 8 个预设指令，覆盖前进、转弯、后退及静止等基本运动基元，适用于 DQN 等仅支持离散输出的算法，具体映射关系见表~\ref{tab:discrete_action}。
 
 \begin{table}[H]
     \centering
-    \caption{离散动作索引及其对应的物理运动含义}
+    \caption{离散动作索引与对应运动指令}
     \label{tab:discrete_action}
     \begin{tabular}{llcc}
         \toprule
-        \textbf{动作索引} & \textbf{对应物理含义} & \textbf{向前方线速度 ($v$)} & \textbf{转向角速度 ($\omega$)} \\
+        \textbf{动作索引} & \textbf{运动含义} & \textbf{线速度 ($v$)} & \textbf{角速度 ($\omega$)} \\
         \midrule
-        0 & 左前转（小半径） & $0.2 \times v_{\max}$ & $+ \omega_{\max}$ \\
-        1 & 左前转（大半径） & $v_{\max}$ & $+ \omega_{\max}$ \\
+        0 & 左转（小半径） & $0.2\,v_{\max}$ & $+\omega_{\max}$ \\
+        1 & 左转（大半径） & $v_{\max}$ & $+\omega_{\max}$ \\
         2 & 直线前进 & $v_{\max}$ & $0$ \\
-        3 & 右前转（大半径） & $v_{\max}$ & $- \omega_{\max}$ \\
-        4 & 右前转（小半径） & $0.2 \times v_{\max}$ & $- \omega_{\max}$ \\
-        5 & 直线后退 & $- v_{\max}$ & $0$ \\
-        6 & 减速 / 微速前进 & $0.1 \times v_{\max}$ & $0$ \\
-        7 & 原地静止 & $0.0$ & $0.0$ \\
+        3 & 右转（大半径） & $v_{\max}$ & $-\omega_{\max}$ \\
+        4 & 右转（小半径） & $0.2\,v_{\max}$ & $-\omega_{\max}$ \\
+        5 & 直线后退 & $-v_{\max}$ & $0$ \\
+        6 & 微速前进 & $0.1\,v_{\max}$ & $0$ \\
+        7 & 原地静止 & $0$ & $0$ \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\subsubsection{连续动作空间选择}
-当采用能够处理连续动作空间的先进算法（如 TransSAC、SAC 等）时，智能体策略网络（Actor）将输出一个二维动作向量 $[a_1, a_2]$。通常该向量的值域被限制在 $[-1, 1]$ 之间。环境会在底层通过预设的最大速度比例尺（Continuous Scale），将该网络输出连续投影至实际底盘物理量：
+\subsubsection{连续动作空间}
+
+连续模式下，策略网络输出二维向量 $[a_1,\,a_2]\in[-1,1]^2$，环境按固定比例尺将其映射为底盘物理量：
 \begin{itemize}
-    \item \textbf{实际线速度}：$V_l = a_1 \times 50 \text{ cm/s}$
-    \item \textbf{实际角速度}：$\omega = a_2 \times 2 \text{ rad/s}$
+    \item 线速度：$V_l = a_1 \times 50\,\text{cm/s}$
+    \item 角速度：$\omega = a_2 \times 2\,\text{rad/s}$
 \end{itemize}
+SAC、TransSAC 等基于连续控制的算法均采用此模式。
 
-\subsection{DWA算法实现}
-\subsection{强化学习算法实现}
-\subsection{特征状态与奖励函数设计}
-为了让强化学习模型在动态避障中做出最合理的决策，环境的状态构建与奖励指引发挥着决定性作用。
+\subsection{分布式训练架构设计--Actor-Learner-Sharer模型}
+\label{sec:shared_data_module}
 
-\subsubsection{动作状态叠加与延迟处理}
-真实的机器人系统从指令下发到底盘电机输出必然存在滞后响应。为此，环境采用了一种“动作历史叠加（Action State Stacking）”的高级特征融合机制。在底层系统生成观测向量时，不仅会采集物理反馈，还会提取并拼接“动作历史序列”：
+\subsubsection{模块设计背景与目标}
+
+在传统的单进程强化学习算法中，环境交互（数据采样）与神经网络更新（梯度下降）通常是串行执行的。这种同步阻塞的模式导致底层硬件算力无法得到充分利用，极大限制了算法的采样效率与收敛速度。因此需要分布式训练架构来解耦数据采集与模型训练的物理进程，从而实现真正意义上的并行加速。
+
+\begin{tikzpicture}[
+    % 定义通用样式
+    task/.style={rectangle, draw=black, fill=blue!40, minimum width=2.5cm, minimum height=0.8cm, align=center},
+    subtask/.style={rectangle, draw=black, fill=blue!40, minimum width=1.4cm, minimum height=0.6cm, align=center},
+    cnode/.style={rectangle, draw=black, dashed, fill=gray!10, rounded corners=2pt, minimum width=2.5cm, minimum height=1.2cm, align=center},
+    output/.style={rectangle, draw=black, fill=green!40!lime!60, minimum width=2.5cm, minimum height=0.6cm, align=center},
+    % 定义箭头样式
+    myarrow/.style={-{Stealth[scale=1.2]}, line width=3pt, draw=blue!40!gray}
+]
+
+% ====================
+% (a) 单计算节点
+% ====================
+\node[task] (taskA) {任务};
+\node[cnode, below=1cm of taskA] (nodeA) {计算节点};
+\node[output, below=1cm of nodeA] (outA) {输出};
+
+\draw[myarrow] (taskA) -- (nodeA);
+\draw[myarrow] (nodeA) -- (outA);
+
+\node[below=0.3cm of outA, font=\sffamily] {(a) 单计算节点};
+
+
+% ====================
+% (b) 分布式多计算节点
+% ====================
+\begin{scope}[xshift=8cm] % 将右侧图形整体向右平移
+    
+    % 上层：子任务
+    \node[subtask] (sub2) {子任务2};
+    \node[subtask, left=0.1cm of sub2] (sub1) {子任务1};
+    \node[subtask, right=0.1cm of sub2] (sub3) {子任务3};
+
+    % 中层：计算节点
+    \node[cnode, below=1cm of sub2] (node2) {计算节点2};
+    \node[cnode, left=0.3cm of node2] (node1) {计算节点1};
+    \node[cnode, right=0.3cm of node2] (node3) {计算节点3};
+
+    % 下层：输出
+    \node[output, below=1cm of node2, minimum width=3cm] (outB) {输出};
+
+    % 绘制连线
+    \draw[myarrow] (sub1.south) -- (node1.north);
+    \draw[myarrow] (sub2.south) -- (node2.north);
+    \draw[myarrow] (sub3.south) -- (node3.north);
+
+    \draw[myarrow] (node1.south) -- (outB.north west);
+    \draw[myarrow] (node2.south) -- (outB.north);
+    \draw[myarrow] (node3.south) -- (outB.north east);
+
+    \node[below=0.3cm of outB, font=\sffamily] {(b) 分布式多计算节点};
+
+\end{scope}
+
+\end{tikzpicture}
+
+为解决上述计算瓶颈与资源闲置问题，本研究引入 Actor–Learner 分布式训练架构，将环境交互（数据采样）与模型更新（参数学习）在物理进程上深度解耦，以打破算力瓶颈，大幅提高资源利用率与训练吞吐量。该架构主要包含以下三个核心部分：
+
+\begin{enumerate}
+\item \textbf{Actor（采样器）}：负责与环境进行高频交互，执行当前策略以采集经验轨迹，单步转移数据通常记录为 $(s_t, a_t, r_t, s_{t+1})$。由于仿真环境推演与逻辑判断属 CPU 密集型任务，Actor 可并行部署为大量独立进程或容器。各实例在独立的仿真环境中运行，并将采集到的数据异步写入中心经验池或以流式方式发送至 Learner。
+
+\item \textbf{Learner（学习器）}：专注于神经网络参数的优化。Learner 从经验池中抽取小批量（Mini-batch）数据，并基于相应的损失函数（如 SAC 的 Actor-Critic 损失或 DQN 的 TD error）执行反向传播。作为 GPU/TPU 密集型任务，Learner 独占加速硬件资源，无需等待环境交互的物理步时延，从而实现极高的样本处理效率与梯度更新速率。
+
+\item \textbf{Sharer（参数分发器）}：在大规模集群部署中常独立为参数服务组件。其主要负责全局网络权重的版本管理与分发，旨在缓解海量 Actor 同步拉取最新参数时对 Learner 计算及网络带宽造成的 I/O 瓶颈。通过高效的参数同步，Sharer 确保各 Actor 部署的策略不至于过度陈旧，严格控制 Off-policy 算法中的分布偏差（Distribution Shift）。
+\end{enumerate}
+
+\subsubsection{共享数据中枢设计}
+为实现跨进程及异构硬件（CPU 与 GPU）间的高效协同，本节参考 ColorDynamic 导航系统中的相关工作 \cite{colordynamic}，设计并实现了一个高性能的共享数据中枢模块（\texttt{Shared Data Module}）。该模块扮演了连接数据采集端与模型训练端的“中央物流中枢”角色。为了彻底消除高频通信带来的 I/O 瓶颈，本系统将该模块直接部署于主内存（RAM）中，利用共享内存机制实现进程间的极速交互。该模块主要承担两大核心职能：
+\begin{enumerate}
+    \item \textbf{构建高速数据管道}：无阻塞地接收多 Actor 的并发经验写入，同时为 Learner 的高速迭代提供高吞吐量的随机批次采样（Batch Sampling）。
+    \item \textbf{实现异步状态同步}：作为策略网络（Policy Network）参数的高速寄存器，精准协调 Learner 完成梯度更新后的参数异步下发，以及 Actor 开启新回合前的参数非阻塞拉取。
+\end{enumerate}
+
+共享数据模块扮演了连接数据采集端与模型训练端的“中央物流中枢”角色。为了消除 I/O 瓶颈，本系统将该模块部署于主内存（RAM）中，利用共享内存机制实现进程间的极速通信。
+
+本模块的数据流转架构如图 \ref{fig:shared_data_arch} 所示：
+
+\begin{figure}[htbp]
+    \centering
+\begin{tikzpicture}[
+    % ==== 定义通用样式 ====
+    % 基础节点样式
+    basebox/.style={
+        rectangle, draw=black!60, thick, rounded corners=6pt, 
+        align=center, minimum height=1.8cm, text=black,
+        drop shadow={opacity=0.15, shadow xshift=1.5mm, shadow yshift=-1.5mm}
+    },
+    % 特定节点样式（带微渐变）
+    buffer/.style={basebox, top color=blue!5, bottom color=blue!15, minimum width=4.8cm},
+    register/.style={basebox, top color=orange!5, bottom color=orange!15, minimum width=4.8cm},
+    actorbox/.style={basebox, top color=green!5, bottom color=green!15, minimum width=5cm},
+    learnerbox/.style={basebox, top color=red!5, bottom color=red!15, minimum width=5cm},
+    % 箭头样式
+    data_arrow/.style={-{Stealth[scale=1.2]}, line width=1.5pt, draw=blue!70!gray, text=black!80},
+    weight_arrow/.style={-{Stealth[scale=1.2]}, line width=1.5pt, draw=orange!80!red, text=black!80},
+    % 共享内存背景样式
+    shared_mem/.style={
+        rectangle, draw=black!40, dashed, thick, rounded corners=10pt, 
+        fill=gray!8, inner sep=18pt
+    }
+]
+
+% ==== 1. 定义顶部节点 (Shared Memory 内部) ====
+\node[buffer] (buffer) {
+    \textbf{向量化环形经验池} \\
+    \fontsize{9pt}{10pt}\selectfont \sffamily (Ring Replay Buffer) \\
+    \vspace{2pt}
+    \fontsize{8pt}{9pt}\selectfont \ttfamily \color{black!70} [s, a, r, s', dw] \sffamily 异构张量存储
+};
+
+\node[register, right=2.5cm of buffer] (register) {
+    \textbf{模型参数寄存器} \\
+    \fontsize{9pt}{10pt}\selectfont \sffamily (Actor Policy Weights) \\
+    \vspace{2pt}
+    \fontsize{8pt}{9pt}\selectfont \ttfamily \color{black!70} [actor\_param] \sffamily 字典状态字典
+};
+
+% ==== 2. 绘制共享数据中枢背景框 ====
+\begin{scope}[on background layer]
+    \node[shared_mem, fit=(buffer) (register)] (shared) {};
+    % 背景框的标题
+    \node[anchor=south, font=\bfseries\sffamily\large, text=black!80, yshift=4pt] 
+        at (shared.north) {Shared Data 通信中枢 (主内存 RAM)};
+\end{scope}
+
+% ==== 3. 定义底部节点 ====
+\node[actorbox, below=3.5cm of buffer] (actor) {
+    \textbf{Actor 进程} \small (数据采集端) \\
+    \vspace{2pt}
+    \fontsize{9pt}{10pt}\selectfont \sffamily \color{black!70} (运行于 CPU 或 推理 GPU)
+};
+
+\node[learnerbox, below=3.5cm of register] (learner) {
+    \textbf{Learner 进程} \small (模型训练端) \\
+    \vspace{2pt}
+    \fontsize{9pt}{10pt}\selectfont \sffamily \color{black!70} (运行于 高性能 GPU)
+};
+
+% ==== 4. 绘制数据流转箭头 ====
+
+% (1) Actor -> Buffer (写入经验)
+\draw[data_arrow] (actor.north) -- (buffer.south) 
+    node[midway, left=4pt, font=\sffamily\small] {写入转移经验};
+
+% (2) Learner -> Register (更新权重)
+\draw[weight_arrow] (learner.north) -- (register.south) 
+    node[midway, right=4pt, font=\sffamily\small] {更新权重};
+
+% (3) Buffer -> Learner (采样批次数据 - 交叉线)
+% 使用 pos 参数调整文字位置，并添加白色背景避免线条穿过文字
+\draw[data_arrow] (buffer.315) -- (learner.135) 
+    node[pos=0.25, right=4pt, font=\sffamily\small, fill=white, inner sep=2pt, rounded corners=2pt] {采样批次数据};
+
+% (4) Register -> Actor (拉取最新权重 - 交叉线)
+\draw[weight_arrow] (register.225) -- (actor.45) 
+    node[pos=0.25, left=4pt, font=\sffamily\small, fill=white, inner sep=2pt, rounded corners=2pt] {拉取最新权重};
+
+\end{tikzpicture}
+\caption{分布式 Actor-Learner 共享数据流转架构图}
+\label{fig:shared_data_arch}
+\end{figure}
+
+\subsubsection{核心数据结构设计}
+
+为充分满足大规模分布式强化学习中的并发读写与异构设备协同需求，本模块在底层数据结构设计上遵循以下两项核心原则：（1）向量化存储以适应并行采样；（2）异构设备感知的透明映射以消除数据流转的物理瓶颈。
+
+\paragraph{向量化环形缓存池（Vectorized Ring Buffer）}
+
+在本架构中，Actor 端并行部署 $N$ 个独立的仿真环境进行同步采样。若采用传统二维经验池 $(Max\_Size, Feature\_Dim)$，则需对 $N$ 个环境的数据依次拼接后写入，这会引入高频的列表操作与内存重排开销。为此，本模块将经验回放池升级为三维张量结构 $\mathcal{D} \in \mathbb{R}^{Max\_Size \times N \times State\_Dim}$，使得 $N$ 个环境的采样数据可在底层以矩阵块的形式原子写入，避免了序列化与重新索引的计算浪费。
+
+同时，为防止内存占用的无限增长，该缓存池采用环形覆盖机制。系统维护一个循环写入指针 $ptr$，每当新数据写入时自动递增；当 $ptr$ 达到 $Max\_Size$ 时通过取模运算 $ptr \leftarrow ptr \bmod Max\_Size$ 自动回卷至缓存起始位置，新样本覆盖最旧的数据。这一设计既保证了数据的"热"性（确保 Learner 采样自相对新鲜的转移），又严格将内存峰值锁定在预分配的上界，避免了动态扩展带来的GC延迟。
+
+\paragraph{三端异构硬件自适应映射（Tri-Device Memory Mapping）}
+
+在实际部署中，数据流通涉及三类计算设备：Actor 端推理设备（CPU 或推理 GPU，记为 $A\_dvc$）、中心存储设备（主内存 RAM，记为 $B\_dvc$）、Learner 端训练设备（高性能 GPU，记为 $L\_dvc$）。若在数据入库与采样的每个环节都手动管理这些设备间的张量转移，会引入繁冗的代码耦合与难以预测的内存碎片化。
+
+为此，本模块在初始化时显式配置这三类设备标识，在执行 $\texttt{Add}()$ 与 $\texttt{Sample}()$ 等核心操作时自动调用 PyTorch 的设备无关接口（如 $\texttt{.to}(device)$）。具体地，当 Learner 调用 $\texttt{Sample}()$ 方法时，系统先从主内存批量读取数据，随后在返回前自动将其转移至 $L\_dvc$，使调用方无需感知底层的设备寻址细节。
+
+\begin{algorithm}
+\caption{共享数据中枢的异构张量流转与自旋锁控制伪代码}
+\label{alg:shared_data}
+\textbf{输入}: 采集端设备 $A\_dvc$ (CPU), 训练端设备 $L\_dvc$ (GPU), 经验池容量 $Max\_Size$, 批次大小 $B$\\
+\textbf{初始化}: 
 \begin{itemize}
-    \item \textbf{预期动作片段（Current Action）}：智能体在当前网络步计算并下发的预期动作指令。
-    \item \textbf{真实动作片段（Real Action）}：受前文 $K=0.6$ 滤波平滑影响与控制延迟后，此时车体历史真正在执行的滞后动作。
+    \vspace{-0.2cm}
+    \item 预分配主存 ($RAM$) 经验池张量 $\mathcal{D} \in \mathbb{R}^{Max\_Size \times N \times State\_Dim}$
+    \item 初始化自旋锁状态矩阵 $busy \leftarrow [\text{False}, \text{False}]$
+    \item 队列写入指针 $ptr \leftarrow 0$
 \end{itemize}
-将预期与历史的执行时差喂给观测空间，是为了强制强化学习算法产生自我意识，领悟出“当前的移动态势是此前几步命令共同滞后作用的结果”，有效避免策略盲目修正所引发的车体“画龙”（剧烈高频S型抖动）现象，大幅度提升了整体导航的平滑性。
+\vspace{-0.2cm}
+\begin{algorithmic}[1]
+\Function{Add}{$transition\_data$} \Comment{由 Actor 并发调用，位于 $A\_dvc$}
+    \While{$busy[1] == \text{True}$} \Comment{轻量级自旋锁等待}
+        \State \text{Pass} 
+    \EndWhile
+    \State $busy[1] \leftarrow \text{True}$ \Comment{获取经验池锁}
+    \State $\mathcal{D}[ptr] \leftarrow transition\_data$ \Comment{数据存入主内存}
+    \State $ptr \leftarrow (ptr + 1) \pmod{Max\_Size}$ \Comment{环形队列覆写机制}
+    \State $busy[1] \leftarrow \text{False}$ \Comment{释放锁}
+\EndFunction
 
-\subsubsection{综合状态空间构成（Observation Space）}
-经过全局归一化（Normalize）处理后，智能体每一个交互步所能“看到”并摄入神经网络的完整状态向量囊括：
-\begin{itemize}
-    \item \textbf{目标相对距离（D2T）}：当前机器人中心坐标距终点区域的欧氏距离向量。
-    \item \textbf{环境相对偏角（Alpha）}：目标点相对于机器人当前车头朝向的夹角偏差，特征极值非线性归一化到 $[-1, 1]$ 范围。
-    \item \textbf{自身运动速度（Velocities）}：包含当前的平移线速度和转向角速度。
-    \item \textbf{激光雷达数据（Lidar Data）}：经过底层网格扫描下采样分组后实时映射出的雷达测距阵列，借此勾勒外界静/动态障碍轮廓特征。
-    \item \textbf{动作历史队列（Action History）}：前述用以辅助消除控制时差的“预期-真实”动作动作列表记录。
-\end{itemize}
+\State
+\Function{Sample}{} \Comment{由 Learner 高频调用，意图用于 $L\_dvc$}
+    \While{$busy[1] == \text{True}$} 
+        \State \text{Pass} 
+    \EndWhile
+    \State $busy[1] \leftarrow \text{True}$
+    \State $batch \leftarrow \text{RandomSelect}(\mathcal{D}, B)$ \Comment{从主内存抽取小批量数据}
+    \State $busy[1] \leftarrow \text{False}$
+    
+    \State $batch\_L \leftarrow batch\mathbf{.to}(L\_dvc)$ \Comment{\textbf{底层隐式设备映射}}
+    \State \Return $batch\_L$ \Comment{返回的张量已原生驻留于 GPU}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
-\subsubsection{复合引导奖励函数（Reward Function）}
+\subsubsection{并发控制与轻量级读写锁机制}
+
+在多进程共享内存架构中，并发访问冲突是系统性能的关键制约。若 Learner 在执行参数寄存器写操作时，某个 Actor 同时尝试读取该参数，将导致张量内存被破坏。更严重的是，如果采用传统的全局互斥锁（Mutex），会强制所有竞争线程进入阻塞态并触发昂贵的内核态上下文切换，这对纳秒级别的张量访问操作而言开销巨大。
+
+针对此问题，本系统设计了\textbf{细粒度自旋锁}（Spin-Lock）机制以替代系统级锁。核心思想是：维护一个状态向量 $\texttt{busy} \in \{\text{False}, \text{False}\}$，其中 $\texttt{busy}[0]$ 保护"模型参数寄存器"的读写，$\texttt{busy}[1]$ 保护"经验池"的读写。这种细粒度分离使得数据域与权重域的竞争可以独立控制，大幅降低了全局锁阻塞的概率。
+
+更重要的是，当某进程发现目标锁已被占用时，不是挂起等待（开销 $\sim 100\,\mu s$），而是进入紧密自旋轮询状态（轮询周期 $\sim 10^{-4}\,s$）。鉴于张量操作通常耗时极短（$< 1\,ms$），短期轮询的开销远小于线程被唤醒的延迟，从而实现"busy-waiting 优于阻塞等待"的场景。同时，虽然自旋会消耗 CPU 周期，但由于 Learner 与 Actor 运行于不同物理核心，这种消耗不会竞争 GPU 计算资源，反而能充分利用多核的计算平面。
+
+当双端进程竞争同一把锁（例如 Actor 和 Learner 同时尝试访问经验池）时，自旋锁机制使未获取锁的进程进入 \texttt{while True} 的高频轮询状态（休眠 $10^{-4}$ 秒级别），而非挂起等待。由于张量转移操作耗时极短，这种短效轮询机制在保证绝对数据安全的同时，将等待开销降到了最低。
+
+\subsubsection{复合引导奖励函数设计}
 为促使训练网络快速在探索期收敛出最优控制策略，模拟器内置了多维度的精细奖惩数学核算：
 \begin{itemize}
     \item \textbf{进度奖励（Progress）}：计算前后状态帧到目标距离的欧氏范数差，智能体越逼近目标即获正向积累，反之背离航向即遭惩罚抵扣。
@@ -174,14 +389,40 @@ TransDQN 的表现持续提升，在 2.5 万步即基本收敛，平均每回合
 基本相当，但其训练效率和初期表现明显优于传统强化学习算法，显示了 Transformer 在强化学习中的潜力。
 
 \begin{itemize}
-    \item \textbf{SAC（Soft Actor-Critic）}：在训练初期（约 10 万步）表现较为不稳定，平均每回合步数较多，
-    奖励较低，到达率约为 30\%。随着训练的推进，SAC 的表现逐渐提升，在 50 万步后平均每回合步数
-    \item \textbf{TransSAC（Transformer-enhanced SAC）}：引入 Transformer 结构后，模型在训练初期就
-    展现出较好的性能，平均每回合步数较少，奖励较高，到达率约为 50\%。随着训练的推进，TransSAC 的表现持续提
-    升，在 50 万步后平均每回合步数进一步减少，奖励显著增加，到达率超过 70\%。
+    \item \textbf{平均回合步数}（$ep\_steps$）：统计成功到达目标的回合所消耗的平均步数；对于超时或碰撞失败的回合，以最大步数上限 500 步计入惩罚，以综合反映算法的导航效率。
+    \item \textbf{平均回合奖励}（$ep\_r$）：统计所有回合的平均累积奖励，反映策略在奖励函数层面的综合表现。
+    \item \textbf{到达率}（$arrival\_rate$）：成功抵达目标点的回合占总测试回合数的比例，是衡量算法可靠性的核心指标。
+    \item \textbf{综合评分}（$normed\_total\_score$）：对上述三项指标分别归一化后取均值，计算方式如下：
 \end{itemize}
-与传统的 DWA 算法相比，SAC 和 TransSAC 在路径规划上无论是从平均每回合步数、奖励还是到达率方面都表现出明显的优势。
-尤其是 TransSAC，通过引入 Transformer 结构，显著提升了模型的泛化能力和决策效率，在复杂动态环境中的表现尤为突出。
+
+\begin{equation}
+\begin{aligned}
+    S_{step} &= \frac{500 - ep\_steps}{500 - 70}, \quad
+    S_{reward} = \frac{ep\_r}{220} \\
+    S_{total} &= \frac{S_{step} + S_{reward} + arrival\_rate}{3}
+\end{aligned}
+\end{equation}
+
+三种算法的测试结果汇总于表~\ref{tab:algo_comparison}。
+
+\begin{table}[htbp]
+    \centering
+    \caption{三种路径规划算法综合性能对比}
+    \label{tab:algo_comparison}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{算法} & \textbf{综合评分} & \textbf{到达率} & \textbf{步数评分} & \textbf{奖励评分} \\
+        \midrule
+        DWA      & 0.304 & 0.530 & 0.442 & $-$0.060 \\
+        SAC      & —     & —     & —     & — \\
+        TransSAC & —     & —     & —     & — \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+DWA 作为经典局部规划算法，无需训练即可部署，到达率达 53\%，但其奖励评分为负值，说明在路径质量和行驶效率方面存在明显不足，主要原因在于其基于当前时刻的局部窗口搜索，缺乏对长时序障碍物运动趋势的预判能力。
+
+SAC 在训练初期（约 10 万步）策略尚不稳定，到达率约为 30\%；随着训练推进，策略逐步收敛，50 万步后各项指标均有显著提升。TransSAC 在 SAC 基础上引入 Transformer 序列建模模块，训练初期即表现出更高的到达率（约 50\%），50 万步后到达率超过 70\%，奖励和步数评分亦优于 SAC，体现了时序上下文建模对复杂动态场景的适应优势。
 
 对于DWA经典算法，相关参数调优如下：
 对于一个以恒定线速度 $v$ 和角速度 $\omega$ 运动的对象，其位置随时间 $t$ 的变化可写为：
