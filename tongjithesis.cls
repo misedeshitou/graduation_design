@@ -1,0 +1,1 @@
+\InputIfFileExists{style/tongjithesis.cls}{}{	ypeout{Error: style/tongjithesis.cls not found}\endinput}
