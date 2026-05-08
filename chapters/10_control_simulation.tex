@@ -1,6 +1,6 @@
 \chapter{运动控制仿真}\label{chap:control_simulation}
 \section{仿真环境与工具选择}
-为了验证前一章设计的控制方案的有效性，我们选择了MATLAB/Simulink作为仿真平台。MATLAB提供了强大的数值计算能力和丰富的工具箱，Simulink则支持基于模型的设计和仿真，能够直观地构建系统模型并进行动态仿真。此外，我们还利用了Simscape Multibody模块来建立机器人动力学模型，并使用Reinforcement Learning Toolbox来实现基于深度强化学习的路径规划算法。
+为了验证前一章设计的控制方案的有效性，我们选择了MATLAB/Simulink作为仿真平台。MATLAB提供了强大的数值计算能力和丰富的工具箱，Simulink则支持基于模型的设计和仿真，能够直观地构建系统模型并进行动态仿真。此外，我们还利用了Simscape Multibody模块来建立机器人动力学模型。
 \section{控制方案仿真设计}
 仿真设计分为以下几个步骤：
 
@@ -201,7 +201,7 @@ function d_phi0 = fcn(phi_1, phi_4, d_phi1, d_phi4)
 end
 \end{minted}
 
-\section{仿真条件设置}
+\section{仿真参数配置}
 
 本仿真在MATLAB R2024a环境下进行，使用Simulink 10.0版本。仿真时间设置为10秒，求解器为ode45变步长。机器人初始状态设定为距离地面高度30cm处落下，随后在1s和5s时间点处给定速度激励1m/s和-1m/s。仿真场景包括前半段的平坦地面和连续四个高度为0.25米的障碍物，机器人需要从初始状态落下到起点并越过障碍物，期间保持机体稳定不发散。
 
@@ -258,9 +258,6 @@ lqr_R = [20,      0,       0,       0;
   \caption{越障后的机器人状态}
   \label{fig:obstacle-4}
 \end{figure}
-
-
-\section{仿真结果分析}
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.5\textwidth]{figures/simulink_theta.png}
