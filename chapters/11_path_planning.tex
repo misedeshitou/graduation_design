@@ -79,12 +79,7 @@ DWA 算法的速度窗口计算约束主要包含以下三个递进层次：
     \textbf{信号} & \textbf{含义}  \\
     \midrule
     截断信号（$t_r$）& 当步数超过最大步数限制 $T_{max}$ 时触发  \\
-        终止信号（$d_w$）& \begin{tabular}[t]{@{}l@{}}
-        由以下三种情况的并集触发：\\
-        成功信号（$win$）：智能体与目标的距离 $d_t$ 小于目标区域半径 $d_{threshold}$；\\
-        碰撞信号（$collide$）：传感器观测到的最小障碍物距离小于碰撞阈值 $d_{collision}$；\\
-        出界信号（$exceed$）：智能体与目标点的距离超过了预设的最大范围 $D$。
-        \end{tabular} \\
+        终止信号（$d_w$）& 由以下三种情况的并集触发：成功信号（$win$）：智能体与目标的距离 $d_t$ 小于目标区域半径 $d_{threshold}$；碰撞信号（$collide$）：传感器观测到的最小障碍物距离小于碰撞阈值 $d_{collision}$；出界信号（$exceed$）：智能体与目标点的距离超过了预设的最大范围 $D$。\\
     \bottomrule
   \end{tabular}
 \end{table}
