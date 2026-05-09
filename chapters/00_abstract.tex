@@ -1,11 +1,22 @@
 \MakeAbstract{
-本文面向电缆通道检测机器人的自主巡检需求，研究了轮腿式底盘在复杂狭窄环境中的运动控制与路径规划方法。首先建立串联五连杆轮腿式机器人的运动学与动力学模型，并将其等效简化为一阶倒立摆模型，在此基础上设计基于 LQR 的状态反馈控制器，再通过 VMC 方法将控制量映射为轮电机与关节电机的输入。MATLAB/Simulink 仿真结果表明，该控制方案能够使机器人在平坦地面及包含四个 0.25 m 障碍物的场景下保持姿态稳定并顺利越障。
+本毕业设计针对电缆通道检测机器人，对比选择了轮腿构型的机器人进行研究，运动控制方面，本毕业设计首先对于轮腿进行全身建模，进行WBC（whole body control）全身控制，协同建模两条腿避免分别控制两侧腿导致倾倒。控制器设计方面，将五连杆腿简化为一条虚拟腿作为倒立摆进行控制，整体采用lqr控制器串联VMC转化为关节与轮毂电机输出。随后在matlab仿真平台上进行运动学动力学验证，机器人可连续通过四个0.25m障碍物，并保持稳定的运动状态。
 
-在路径规划方面，本文构建了面向动态障碍环境的强化学习仿真平台，对 DWA、DQN、SAC 以及引入 Transformer 的 TransSAC 等算法进行了分析与调试，并设计了相应的奖励函数与分布式训练框架。仿真结果表明，传统 DWA 算法在复杂场景下到达率仅为 0.53，综合性能有限；经过 5000 万步训练后，DQN 的到达率稳定在 0.9 左右，TransSAC 在相同训练条件下能够更快收敛并取得约 0.9 的到达率和更优的路径效率，表现出较好的导航能力。本文研究为电缆通道检测机器人在复杂环境中的稳定运动与智能导航提供了方法支撑。
+在路径规划方面，本毕业设计对比了传统路径规划算法DWA与深度强化学习算法DQN和SAC，在开源环境Sparrow中进行仿真测试与参数调优。实验结果表明强化学习算法在到达率、路径效率等方面均明显优于传统路径规划算法。针对大规模数据训练加入ASL架构辅助训练，并在SAC上进行实践加快训练效率。在此基础上，本毕业设计在SAC算法前串联Transformer建构，融合历史雷达数据进行训练，增强了模型应对动态障碍物的能力，TransSAC在相同训练条件下收敛速度更快，最终到达率达到0.87，路径效率也更优。
 }{运动控制，深度强化学习，路径规划，TransSAC}
     
 \MakeAbstractEng{
-This thesis investigates motion control and path planning for a wheeled-legged cable channel inspection robot operating in narrow and complex environments. First, the kinematic and dynamic models of a serial five-bar wheeled-legged robot are established and then simplified into a first-order inverted pendulum model. Based on this model, an LQR-based state-feedback controller is designed, and a VMC method is used to map the control outputs to wheel motor and joint motor inputs. MATLAB/Simulink simulations show that the proposed controller keeps the robot stable and enables it to traverse four 0.25 m obstacles successfully on both flat ground and obstacle-rich terrain.
+This graduation design focuses on a detection robot for cable tunnels, specifically researching a wheel-legged configuration.
 
-For path planning, a reinforcement-learning simulation platform is built for dynamic obstacle scenarios, and DWA, DQN, SAC, and TransSAC are analyzed and tuned together with their reward design and distributed training framework. Simulation results indicate that the traditional DWA algorithm achieves only a 0.53 arrival rate in complex environments, with limited overall performance. After 50 million training steps, DQN stabilizes at an arrival rate of about 0.9, while TransSAC converges faster under the same training conditions and reaches an arrival rate of about 0.9 with better path efficiency, demonstrating strong navigation capability. The results provide methodological support for stable motion and intelligent navigation of cable channel inspection robots in complex environments.
+Motion Control and Modeling
+The design begins with a Whole Body Control (WBC) approach based on a comprehensive model of the wheel-legged system. By synergistically modeling both legs rather than controlling them independently, the system effectively prevents tipping.
+
+For the controller design, each five-link leg is simplified into a virtual leg acting as an inverted pendulum. The control architecture employs an LQR (Linear Quadratic Regulator) controller in series with VMC (Virtual Model Control) to map high-level commands into joint and hub motor outputs. Kinematic and dynamic verification conducted on the MATLAB simulation platform demonstrates that the robot can continuously traverse four 0.25m obstacles while maintaining a stable motion state.
+
+Path Planning and Reinforcement Learning
+In the realm of path planning, this design compares the traditional DWA (Dynamic Window Approach) with Deep Reinforcement Learning algorithms, specifically DQN and SAC, using the open-source Sparrow environment for simulation and parameter tuning.
+
+Experimental results indicate that Reinforcement Learning significantly outperforms traditional algorithms in terms of arrival rate and path efficiency. To handle large-scale data training, an ASL (Active Suggestive Learning) architecture was integrated into the SAC framework to accelerate training efficiency.
+
+Innovation: TransSAC
+Furthermore, this design introduces a Transformer architecture serialized before the SAC algorithm to fuse historical LiDAR data. This enhancement bolsters the model's ability to navigate dynamic obstacles. The resulting TransSAC model exhibits faster convergence under identical training conditions, ultimately achieving a 0.87 arrival rate and superior path efficiency.
 }{motion control, deep reinforcement learning, path planning, TransSAC}
