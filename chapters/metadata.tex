@@ -9,12 +9,12 @@
 % ============================================================
 %  封面信息
 % ============================================================
-\school{计算机科学与技术学院}
-\major{计算机科学与技术}
-\student{2654321}{张同舟}
-\thesistitle{\TongjiThesis{} 论文模板使用示例}{\LaTeX{}排版技术在学术写作中的应用}
-\thesistitleeng{\TongjiThesis{} Template Usage Example}{Application of \LaTeX{} Typesetting in Academic Writing}
-\thesisadvisor{李共济\quad 教授}
+\school{机械工程与机器人学院}
+\major{机械设计制造及其自动化}
+\student{2252847}{张涵}
+\thesistitle{电缆通道检测机器人运动控制与路径规划仿真}{}
+\thesistitleeng{Motion Control and Path Planning Simulation of a Cable Channel Inspection Robot}{}
+\thesisadvisor{李晓田\quad 助理教授 \quad  李柠\quad 教授}
 \thesisdate{\the\year}{\the\month}{\the\day} % 使用当前日期; 也可以自定义日期
 
 % ============================================================
@@ -25,19 +25,22 @@
 %   thesis      — 毕业论文，摘要
 %   design      — 毕业设计（软件/创意/建筑等非工程设计类），摘要
 %   engineering — 毕业设计（工程设计类），设计总说明
-\infotype{thesis}
+\infotype{engineering}
 
 % 内容简述（请用300字以内简要概述）
 \infoabstract{%
-请在此处填写论文内容简述，字数建议不超过300字。内容简述应概括论文的研究背景与问题动机、研究目标、主要方法与技术路线、实验设计与数据来源、关键实验结果及性能指标，以及研究结论与创新点，使读者能够快速了解本论文的核心贡献与研究意义。建议按照以下结构来组织简述内容：首先介绍研究背景与问题动机，充分说明研究的必要性与现有相关工作的主要不足之处；其次阐述所提出的方法或技术方案及其设计原理与主要实现细节；然后给出在典型数据集或实际应用场景下的主要实验结果与量化评价指标的全面横向对比分析；最后总结本研究的主要结论与当前局限性，并展望未来改进方向与潜在应用前景。请将以上示例文字全部替换为您的实际内容简述。
+本毕业设计主要设计了一款五连杆构型轮腿机器人，针对电缆通道检测的多障碍物背景，需要在运动控制层面满足可以跨越障碍地形，在路径规划方面可以满足在复杂的多种形态静态障碍物和随机移动的动态障碍物的环境中完成到达目标点的路径规划。
+
+在运动控制方面，本毕业设计采取WBC全身建模控制，综合考虑两腿协同建模，lqr串联vmc实现控制。对比常见的单腿建模更不易发生全车发散情况，但对比mpc等带约束的控制仍有无法限制状态量和控制量输出的不足。
+在路径规划方面，本毕业设计横向对比传统路径规划算法DWA和深度强化学习算法如DQN、SAC，在此基础上，本毕业设计还在SAC算法前串联Transformer架构，融合历史雷达数据进行训练，增强了模型应对动态障碍物的能力。TransSAC在相同训练条件下收敛速度更快，最终到达率达到0.87，路径效率也更优。
 }
 
 % 毕业设计：图纸数量与正文字数（成果类型为 design 或 engineering 时填写，两者须同时填写）
-% \infodrawings{5}
-% \infowordcount{15000}
+\infodrawings{0}
+\infowordcount{15000}
 
 % 毕业论文：正文总字数（成果类型为 thesis 时填写）
-\infothesiswords{12345}
+% \infothesiswords{12345}
 
 % 随附资料（每条用 \item 开头；不填则显示空白行）
 \infomaterials{

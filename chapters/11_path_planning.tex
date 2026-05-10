@@ -1,0 +1,257 @@
+\chapter{电缆机器人的路径规划算法}\label{chap:path_planning}
+\section{路径规划目标}
+
+电缆机器人的核心目标是找到一条从当前起点到终点的无碰撞和最佳路径。 这条道路在时间和长度上都应该是最佳的。 同时，必须确保机器人自身的运动稳定性和安全性。 该任务包括动态和静态避障以及跟踪目标的轨迹规划。\cite{use-gru2}对于本文中的五连环轮腿电缆机器人，路径规划目标总结如下：
+
+\begin{enumerate}
+\item 安全和稳定性：路径规划必须使机器人在行进过程中远离危险情况。 这些情况包括姿态发散、翻车或碰撞。 为了实现这一点，计划的路径必须满足机器人的运动学和动力学的约束。 此类约束的例子包括腿部摆动角度、机体俯仰角等。 满足这些限制确保了机器人在复杂地形中的稳定移动。
+
+\item 效率和优化：路线规划应尽可能降低行进时间和能源消耗，同时满足安全性。 对于电缆机器人来说，电池寿命有限。 因此，计划的路径应避免不必要的弯路和频繁的加减速，这提高了整体效率。
+
+\item 电缆机器人通常需要在未知或动态变化的环境中作业， 例如，可能会突然出现障碍，或者环境条件会发生变化。 在这些情况下，路径规划算法应该能够实时调整。 它应该迅速重新规划路线，以满足新条件。 这确保了任务继续并保持安全。
+
+\end{enumerate}
+
+\section{传统路径规划算法}
+在移动机器人领域，经典的传统路径规划算法主要包括基于图搜索的全局算法（如 A*、Dijkstra）、基于采样的算法（如 RRT）以及局部避障算法（如人工势场法 APF、动态窗口法 DWA）。\cite{wu2022dynamic}针对电缆机器人的运行特性，这里主要介绍 A* 与 DWA 算法，并探讨它们在面对复杂动态避障时的适用性。
+
+\subsection{A* 算法}
+A* 算法是一种结合了启发式信息的经典图搜索策略，因其在静态路网中寻找最短路径时的高效性和完备性而被广泛使用。\cite{astar}其核心思想是通过评估函数 $f(n)$ 来决定节点的扩展顺序，评估函数定义为：
+\begin{equation}
+    f(n) = g(n) + h(n)
+\end{equation}
+
+其中，$n$ 代表当前考察的节点；$g(n)$ 为从起点到当前节点 $n$ 的实际已花费代价；$h(n)$ 是从节点 $n$ 到终点的启发式预估代价（通常采用欧几里得距离或曼哈顿距离）。
+
+A* 算法的具体工作流程如下：
+\begin{enumerate}
+    \item 初始化：建立两个列表，Open List（待考察节点集合）和 Closed List（已考察节点集合）。将起点加入 Open List。
+    \item 选择节点：从 Open List 中选出评估函数 $f(n)$ 最小的节点作为当前节点 $n_c$。如果 $n_c$ 是终点，则规划完成，通过回溯指针生成最终路径。
+    \item 节点扩展：将 $n_c$ 从 Open List 移入 Closed List。遍历 $n_c$ 的所有相邻可行节点，对于任意合格相邻节点 $n_a$，计算其代价值。
+    \item 状态更新：若 $n_a$ 不在 Open List 中，则将其加入并记录父节点为 $n_c$；若已存在且新的路网走法下 $g(n_a)$ 更优，则更新其 $g(n_a)$ 值和父节点指向。重复上述步骤直到 Open List 为空或到达终点。
+\end{enumerate}
+
+对于电缆机器人而言，如果在作业前能提前获知整条线路上碎石等静态障碍物的绝对坐标，A* 算法能在宏观层面生成一系列无碰撞的基准跨越点。然而，A* 算法本质上是一个静态全局规划器，当传感器检测到移动的未知障碍物时，预先构建的静态栅格地图会面临大范围失效。此时若强行避让动态目标，必须进行极高频率的全局节点重置与启发式规划，这不仅计算开销庞大，更会引起不可接受的控制延迟现象。因此，A* 算法虽然在静态环境中表现优异，但在电缆机器人面临的高度动态和不确定环境中，其适用性和效率都将会受到严重限制。
+
+\subsection{DWA 动态窗口法}
+相比之下，DWA（Dynamic Window Approach）是一种常用且高效的局部实时避障算法。它将位置空间的避障问题转化为机器人的速度空间 $(v, \omega)$ 中的优化搜索问题。其核心思想在于：结合机器人的物理运动极限计算出一个安全的“速度窗口”，并在此窗口内通过轨迹推演寻找当前最优速度下发执行。\cite{bai2021uav}
+
+DWA 算法的速度窗口计算约束主要包含以下三个递进层次：
+\begin{enumerate}
+    \item 基础运动学约束 $V_m$：受限于机器人电机性能的最大/最小设计速度。该全集限定了线速度 $v \in [v_{min}, v_{max}]$ 与角速度 $\omega \in [\omega_{min}, \omega_{max}]$。
+    \item 电机动态加减速约束 $V_d$：由于机器人不可能发生瞬间速度跃变，在下一次控制周期 $\Delta t$ 内，其可达到的速度窗口被严格限制在当前速度 $(v_c, \omega_c)$ 与极大加速度 $(a_v, a_\omega)$ 的物理爬升范围内：
+    \begin{equation}
+        V_d = \{ (v, \omega) \mid v \in [v_c - a_v \Delta t, v_c + a_v \Delta t], \omega \in [\omega_c - a_\omega \Delta t, \omega_c + a_\omega \Delta t] \}
+    \end{equation}
+    \item 安全刹车约束 $V_a$：为了保证机器人绝对不与雷达线上的障碍物相撞，算法要求所有入选速度必须能在其撞击前安全刹停（设雷达扫描距离为 $\text{dist}$）：
+    \begin{equation}
+        V_a = \left\{ (v, \omega) \mid v \le \sqrt{2 \cdot \text{dist}(v, \omega) \cdot a_v}, \;\; \omega \le \sqrt{2 \cdot \text{dist}(v, \omega) \cdot a_\omega} \right\}
+    \end{equation}
+\end{enumerate}
+
+最终在每个周期内被允许采样的动态速度窗口 $V_r$ 是以上三者的交集：$V_r = V_m \cap V_d \cap V_a$。
+
+在计算出安全域 $V_r$ 的范围后，DWA 流程会对窗口内的各个速度对 $(v, \omega)$ 离散化采样，并进行固定时长的前向模拟轨迹推演，随后通过以下评价函数对所有推演出的末端状态进行在线归一化打分求解：
+\begin{equation}
+    G(v, \omega) = \sigma \left( \alpha \cdot \text{heading}(v, \omega) + \beta \cdot \text{dist}(v, \omega) + \gamma \cdot \text{vel}(v, \omega) \right)
+\end{equation}
+
+其中，$\text{heading}$ 评估轨端航向角偏离目标位置的程度（越小越好）；$\text{dist}$ 用于惩罚靠近障碍物的行为并衡量安全间距；$\text{vel}$ 负责鼓励机器人保持较高的期望线速度。系统会在每一个时间步选取 $G(v, \omega)$ 得分最高的最优速度指令发送给底层电机。
+\subsection{传统算法的选择结论}
+
+对于电缆机器人的实际应用，全局静态A*算法由于缺乏基于突如其来的雷达信息进行自适应重新规划的能力，耗时多且缺乏动态响应能力，使其难以真正满足实时动态主动避障的严格要求。另一方面，DWA算法受益于动力学（考虑最大制动距离）的严格窗口约束，以及通过局部微秒级时间模拟评估轨迹的能力，在处理动态感应物体时，显示出强大的基于反馈的平稳回避优势。\cite{gong2024local,jin2023robot}因此，通过分析传统算法的数学原理和计算流程，本研究最终决定放弃A*算法，只选择最佳的DWA算法作为传统局部避障的基准模型，以便在随后的模拟中，可以直观地比较自行设计的深度强化学习网络在避障方面的优越性，如长期预测性能。
+
+\section{强化学习路径规划算法}
+
+针对传统基于模型和搜索算法在控制高维、非线性连续状态空间和未知动态环境方面的缺点，基于深度强化学习（DRL）的路径规划为电缆机器人提供了更先进的智能解决方案。\cite{tai2016deep}强化学习算法通过智能体和环境之间的持续试错交互来学习最佳策略，摆脱对精确全局地图和复杂的运动学逆计算的严重依赖，展示了出色的泛化能力。
+
+在特定的电缆机器人路径规划任务中，常用的连续动作空间算法包括DDPG（深度确定性政策梯度）、PPO（近端策略优化算法）和SAC（柔性动作评价算法）等。以这个五杆轮腿机器人的电缆跨障碍和旅行规划为例，其强化学习模型可以抽象定义如下：
+\begin{enumerate}
+
+\item 状态空间：机器人使用自己的传感器来获取相关状态量。 这些状态量包括机器人前进和转向速度、位移，左右腿角和腿角速度，机体倾角和机体倾角速度，共计10个状态量。
+
+\item 动作空间：控制操作由强化学习策略网络输出。 这个动作可以是离散的，也可以是连续的。 它作为整个机器人的前进和转向输出。 该动作可以通过LQR和VMC转换为电机的控制扭矩指令。
+
+\item 奖励函数：奖励是指导智能体学习的主要基础。 它应该包括接近和达到目标点的最终奖励。 它还应该包括对摩擦碰撞和姿态不稳定的惩罚，例如反复回转或碰撞障碍物。
+\end{enumerate}
+
+\subsection{训练过程设计}
+
+\begin{table}[H]
+  \centering
+  \caption{训练结果定义表}\label{tab:training_definition}
+  \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{lp{0.72\textwidth}}
+    \toprule
+    \textbf{信号} & \textbf{含义}  \\
+    \midrule
+    截断信号（$t_r$）& 当步数超过最大步数限制 $T_{max}$ 时触发  \\
+        终止信号（$d_w$）& 由以下三种情况的并集触发：成功信号（$win$）：智能体与目标的距离 $d_t$ 小于目标区域半径 $d_{threshold}$；碰撞信号（$collide$）：传感器观测到的最小障碍物距离小于碰撞阈值 $d_{collision}$；出界信号（$exceed$）：智能体与目标点的距离超过了预设的最大范围 $D$。\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{奖励函数设计}
+
+\subsubsection{稠密奖励项设计}
+
+稠密奖励由以下四个子项加权构成。
+
+距离进度奖励（$R_{dist}$）：
+\begin{equation}
+    R_{dist} = \mathrm{clamp}\left( \frac{d_{t-1} - d_t}{v_{max} \cdot \Delta t}, -1, 1 \right)
+\end{equation}
+该项鼓励智能体向目标点移动，靠近时获得正奖，背离时获得惩罚。
+
+航向对齐奖励（$R_{ori}$）：
+\begin{equation}
+    R_{ori} = \frac{0.25 - \mathrm{clamp}(|\alpha|, 0, 0.25)}{0.25}
+\end{equation}
+该项在智能体正对目标点（$\alpha \approx 0$）时取得最大值 1，随着偏差增大迅速衰减至 0。
+
+动作倾向奖励（$R_{fwd}$）：为了防止智能体在原地滞留，针对前进动作给予奖励。在连续空间下，定义为：
+\begin{equation}
+    R_{fwd} = \mathbb{I}(v_{linear} > 0.5)
+\end{equation}
+
+后退与减速惩罚（$R_{ret}$）：
+\begin{equation}
+    R_{ret} = \mathbb{I}(v_{linear} \leq 0)
+\end{equation}
+
+\subsubsection{综合奖励函数}
+
+最终的奖励函数 $R_{total}$ 表达式如下。为了防止智能体通过原地徘徊“刷分”，引入了 $-0.5$ 的时间惩罚（Living Penalty）项：
+\begin{equation}
+    R_{step} = 0.5 \cdot R_{dist} + (R_{ori} \cdot R_{fwd}) - 0.5 \cdot R_{ret} - 0.5
+\end{equation}
+
+当触发终止信号时，使用稀疏奖励进行覆盖：
+\begin{equation}
+    R_{total} =
+    \begin{cases}
+        R_{AWARD} & \text{if } win = 1 \\
+        R_{PUNISH} & \text{if } collide = 1 \text{ or } exceed = 1 \\
+        R_{step} & \text{otherwise}
+    \end{cases}
+\end{equation}
+
+\subsection{DQN}
+DQN（Deep Q-Network，深度Q网络）是强化学习领域的一个标志性算法。它将深度神经网络（Deep Learning）与传统的Q-Learning相结合，有效解决了传统强化学习在处理高维、连续状态空间时遭遇的“维度灾难”问题。\cite{DQN}以下是 DQN 算法几个核心原理与机制：
+
+\subsubsection{价值函数近似}
+传统的 Q-Learning 通过维护一张 Q-Table 来记录在每个状态 $s$ 下采取动作 $a$ 对应的期望累计回报 $Q(s, a)$。\cite{tai2016robot}但在复杂的连续环境中，状态数量可能极其庞大。DQN 提出使用一个深度神经网络（Q 网络）来近似拟合这个 Q 函数：
+\begin{equation}
+    Q(s, a; \theta) \approx Q^*(s, a)
+\end{equation}
+其中 $\theta$ 是神经网络的参数，输入为状态 $s$，输出是在该状态下各个离散动作的 $Q$ 值。
+
+\subsubsection{经验回放}
+智能体与环境交互产生的数据通常具有极强的时间相关性。如果直接使用这些序列数据训练神经网络，容易引发灾难性遗忘并导致网络极其不稳定。DQN 引入了容量为 $N$ 的经验回放池，将智能体每一步的经验元组 $(s, a, r, s')$ 存储起来。在训练网络时，从中随机抽取一个小批量数据进行梯度下降。这种机制打破了数据间的时间相关性，使其近似独立同分布，同时提高了样本的利用率。
+
+\subsubsection{双网络结构}
+在传统的 Q-Learning 中，更新当前 Q 值的 TD 目标（Temporal Difference Target）依赖于 Q 值本身。如果只用一个网络，在更新当前 Q 值的同时，目标 Q 值也会随之改变，极易导致训练震荡甚至发散。为此，DQN 采用了两个结构完全相同的神经网络：
+\begin{enumerate}
+    \item 评估网络（Evaluate Network） $Q(s, a; \theta)$：负责输出当前的 Q 值，并且在每一步都通过梯度下降进行参数更新。
+    \item 目标网络（Target Network） $Q_{target}(s', a'; \theta^-)$：负责计算 TD 目标。其参数 $\theta^-$ 会被冻结，不参与梯度更新，仅在每隔一定步数后，将评估网络的参数 $\theta$ 完整复制给目标网络。
+\end{enumerate}
+
+该机制使得一段时间内的目标值保持相对固定，大幅提高了训练的稳定性。
+
+\subsubsection{损失函数计算}
+DQN 的本质是一个回归任务，其目标是让评估网络输出的预测值 $Q_{eval}(s, a)$ 尽可能逼近真实的目标值。其损失函数通过均方误差（MSE）定义为：
+\begin{equation}
+    Loss(\theta) = \mathbb{E}_{(s,a,r,s') \sim U(D)} \left[ \Big( \underbrace{r + \gamma \max_{a'} Q_{target}(s', a'; \theta^-)}_{\text{TD 目标值}} - \underbrace{Q_{eval}(s, a; \theta)}_{\text{当前预测值}} \Big)^2 \right]
+\end{equation}
+其中 $r$ 为即时奖励，$\gamma$ 为折扣因子。网络通过让该 Loss 最小化，利用反向传播算法（如 Adam 优化器）更新评估网络的参数 $\theta$。
+
+\subsubsection{$\epsilon$-Greedy 策略工作流程}
+为了平衡探索（尝试新动作）与利用（选择当前利益最大的动作），DQN 采用 $\epsilon$-greedy 策略：以 $\epsilon$ 的概率随机选择一个动作，以 $1 - \epsilon$ 的概率选择当前评估网络认为 $Q$ 值最大的动作 $a = \arg\max_{a} Q_{eval}(s, a; \theta)$。
+
+整个 DQN 的工作流程如下：
+\begin{enumerate}
+    \item 观察当前状态 $s$；
+    \item 根据 $\epsilon$-greedy 策略选择动作 $a$；
+    \item 执行动作，获得奖励 $r$ 和新状态 $s'$；
+    \item 存储该经验 $(s, a, r, s')$ 到经验回放池中；
+    \item 从池中随机抽取一批数据；
+    \item 计算 Loss 并利用梯度下降更新评估网络的参数 $\theta$；
+    \item 定期将评估网络的参数同步给目标网络 $\theta^-$。
+\end{enumerate}
+
+\subsection{SAC}
+SAC（Soft Actor-Critic，柔性行为者-评论家算法）是一种基于最大熵强化学习框架的算法。与传统的强化学习方法相比，SAC 通过引入熵正则化项来鼓励智能体在策略选择上保持一定程度的随机性，从而提高了探索效率和策略的鲁棒性。\cite{yang2023intelligent}以下是 SAC 的核心原理与机制：
+
+\subsubsection{最大熵目标函数}
+传统的强化学习旨在寻找一个策略 $\pi$ 来最大化期望累计奖励。而在 SAC 中，目标函数被修改为最大化期望累积奖励与策略熵（Entropy）之和。其目标函数定义为：
+\begin{equation}
+    J(\pi) = \sum_{t=0}^{T} \mathbb{E}_{(s_t, a_t) \sim \rho_\pi} \left[ r(s_t, a_t) + \alpha \mathcal{H}(\pi(\cdot|s_t)) \right]
+\end{equation}
+
+其中，$\alpha$ 是温度参数，用于控制奖励与熵之间的相对重要性；$\mathcal{H}(\pi(\cdot|s_t))$ 是策略在状态 $s_t$ 下的香农熵。熵越大，表示智能体对动作的选择越随机。这种机制促使智能体在能够完成任务的前提下，尽可能多地探索不同的动作，从而极大地提升了算法的探索能力和对环境持续变化的鲁棒性。
+
+\subsubsection{柔性价值函数与贝尔曼方程}
+基于最大熵框架，SAC 重新定义了状态价值函数（Soft Value Function）和动作价值函数（Soft Q-Function）。柔性状态价值函数 $V(s_t)$ 包含了熵奖励：
+\begin{equation}
+    V(s_t) = \mathbb{E}_{a_t \sim \pi} \left[ Q(s_t, a_t) - \alpha \log \pi(a_t|s_t) \right]
+\end{equation}
+
+对应的柔性贝尔曼方程更新规则为：
+\begin{equation}
+    Q(s_t, a_t) = r(s_t, a_t) + \gamma \mathbb{E}_{s_{t+1} \sim p} \left[ V(s_{t+1}) \right]
+\end{equation}
+
+在实际算法实现中，SAC 通常使用神经网络来逼近这些价值函数。
+
+\subsubsection{Actor-Critic 架构与双 Q 网络机制}
+SAC 采用了 Actor-Critic（演员-评论家）架构，能够很好地处理连续动作空间：
+\begin{enumerate}
+    \item Critic 网络：为了缓解 Q 值的高估问题（Overestimation Bias），SAC 借鉴了 TD3 算法的思想，使用两个独立的 Q 网络 $Q_{\theta_1}$ 和 $Q_{\theta_2}$，在计算目标值时取两者的最小值：$Q_{target} = \min(Q_{\theta_1}, Q_{\theta_2})$。
+    \item Actor 网络：负责输出一个随机策略。在连续控制任务中，通常假设策略服从高斯分布，Actor 网络输出该分布的均值 $\mu$ 和协方差 $\Sigma$。
+\end{enumerate}
+
+\subsubsection{重参数化技巧（Reparameterization Trick）}
+由于 Actor 网络的输出是一个概率分布，直接从分布中采样动作 $a_t$ 会阻断梯度反向传播。为了解决这一问题，SAC 使用了重参数化技巧。具体而言，动作被表示为一个确定性函数 $f_\phi$ 与独立噪声 $\epsilon$ 的结合：
+\begin{equation}
+    a_t = f_\phi(\epsilon_t; s_t)
+\end{equation}
+
+其中噪声 $\epsilon_t$ 通常采样自标准正态分布 $\mathcal{N}(0, I)$。通过这种方式，采样过程的随机性被转移到了外部噪声上，使得 Actor 网络的参数 $\phi$ 能够通过链式法则顺利进行梯度更新。
+% --- 补充 SAC 与 DQN 的对比描述 ---
+\subsubsection{离散与连续动作空间的平衡}
+DQN 及其变体在处理离散动作空间时表现出色，但其本质上依赖于对所有可能动作计算 $Q$ 值并取最大值（$\max$ 操作）。在面对高维甚至无限维的连续动作空间时，DQN 必须对动作空间进行离散化，但这会导致“维度灾难”并丢失精度。
+
+相比之下，SAC 能够天然地处理连续动作空间。通过 Actor 网络输出动作分布的参数（均值与标准差），SAC 可以在连续区间内进行高效采样。此外，通过引入熵正则化，SAC 不仅解决了 DQN 容易陷入局部最优的问题，还显著提升了在复杂连续控制任务中的鲁棒性。
+
+% --- 新增 Transformer 架构及其在 SAC 中的应用描述 ---
+\subsection{Transformer 架构与时序特征建模}
+在复杂的动态环境中，环境状态往往具有部分可观测性（POMDP），仅依赖当前时刻的状态 $s_t$ 难以做出最优决策。为了捕获历史观测中的长期时序依赖关系，本文引入 Transformer 架构作为 SAC 算法的状态编码层，用于串联时序信息。\cite{vaswani2017attention}
+
+\subsubsection{自注意力机制（Self-Attention）}
+Transformer 的核心是多头自注意力机制（Multi-Head Self-Attention, MHSA）。它通过查询（Query）、键（Key）和值（Value）的交互，自动学习序列中不同时间步观测值之间的关联权重。对于输入序列 $X$，其注意力计算公式为：
+\begin{equation}
+    \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+\end{equation}
+其中 $d_k$ 是缩放因子。通过多头机制，网络可以同时从多个表示子空间学习时序特征。
+
+\subsubsection{位置编码（Positional Encoding）}
+由于自注意力机制本身不具备处理序列顺序的能力，本文参考\cite{q-transformer}和\cite{traj-transformer}引入了位置编码来赋予模型时间感知能力。通过将位置向量与状态嵌入向量相加，模型能够分辨不同时间跨度下的状态演变趋势。
+
+\subsubsection{Transformer 与 SAC 的串联集成}
+在本文设计的架构中，Transformer 充当了特征提取器。具体工作流程如下：
+\begin{enumerate}
+    \item 序列输入：将历史 $k$ 个时间步的状态、动作序列 $[s_{t-k}, a_{t-k}, \dots, s_t]$ 作为输入。
+    \item 特征聚合：通过 Transformer Encoder 模块进行并行计算，输出高度压缩的时序上下文向量 $z_t$。
+    \item 策略与价值输出：将 $z_t$ 分别输入 SAC 的 Actor 网络和双 Critic 网络。
+\end{enumerate}
+
+\begin{equation}
+    \pi(a_t | s_{t-k:t}, \phi) = \text{Actor}(\text{Transformer}(s_{t-k:t}))
+\end{equation}
+
+这种“Transformer + SAC”的结构通过 Transformer 强大的表征能力解决了长时序建模问题，同时利用 SAC 的最大熵框架保证了在连续控制任务中的探索效率与稳定性。
+
+\subsection{算法原理初步对比}
+本章详细梳理了机器人在路径规划与运动控制领域的核心算法。首先，探讨了传统的经典导航框架，介绍了 A* 算法在全局路径规划中寻找启发式最优路径的原理，以及 DWA算法在局部路径规划中出色的实时动态避障机制。随后，本文将视角转向基于深度强化学习的智能控制方案，详细梳理了 DQN 与 SAC 算法的核心原理，并在此基础上探讨了引入 Transformer 架构以强化模型对长时序状态表征能力的机制。DQN 通过经验回放与双网络结构奠定了深度强化学习的基础，但在处理高维连续动作空间时存在固有局限；SAC 通过最大熵框架有效提升了连续控制任务中的探索效率与鲁棒性；而 Transformer 与 SAC 的深度融合，则进一步弥补了传统算法在处理部分可观测环境时的短板。
+
+为了更直观地评估上述算法及其改进架构的性能差异与适用场景，本文将在后续小节中结合具体的仿真实验环境，对DWA、DQN、SAC 以及基于 Transformer 增强的 SAC 算法展开详细的对比实验与多维度结果分析。

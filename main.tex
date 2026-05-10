@@ -9,7 +9,14 @@
   biblatex=true,
 ]{tongjithesis}
 
-\tjbibresource{bib/note.bib}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{tikz-3dplot}
+\usetikzlibrary{quotes,angles,calc,intersections} % 加载 angles 库以使用 \pic 命令标注角度
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, backgrounds, fit, shadows}
+
+\tjbibresource{bib/note.bib, bib/graduation_design.bib}
 
 \begin{document}
 
@@ -29,12 +36,20 @@
 \cleardoublepage
 
 \mainmatter
-\input{chapters/01_guide}
-\input{chapters/02_intro}
-\input{chapters/03_float}
-\input{chapters/04_math}
-\input{chapters/05_reference}
-\input{chapters/06_conclusion}
+% \input{chapters/01_guide}
+% \input{chapters/02_intro}
+% \input{chapters/03_float}
+% \input{chapters/04_math}
+% \input{chapters/05_reference}
+% \input{chapters/06_conclusion}
+\input{chapters/07_intro.tex}
+\input{chapters/08_model.tex}
+\input{chapters/09_control.tex}
+\input{chapters/10_control_simulation.tex}
+\input{chapters/11_path_planning.tex}
+\input{chapters/12_path_planning_simulation.tex}
+\input{chapters/13_conclusion.tex}
+% \input{chapters/14_appendix_control.tex}
 
 \makereferences
 

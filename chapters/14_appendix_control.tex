@@ -1,5 +1,5 @@
-\appendixsection{运动控制器补充代码}\label{sec:appendix-controller}
-
+\chapter{控制器实现代码附录}\label{chap:control-code}
+\subsection{控制器部分}
 \begin{minted}[breaklines,linenos,fontsize=\small]{C++}
 
 namespace controllers
@@ -347,6 +347,10 @@ void TandemLeg::kf_update_z()
 
 void TandemLeg::slip_detect()
 {
+  // float innovation_v = chassis.fdb.ds - (z[1][0] * T_CONTROL +);  // 残差
+
+  // 核心逻辑：如果残差过大，说明编码器速度突变（打滑），
+  // 此时我们不信任编码器，极大幅度增加测量噪声 R
   if (std::abs(ekf::kf.data["ds"]) > SLIP_THRESHOLD) {
     // 检测到打滑
     // 策略：瞬间增大测量噪声，让滤波器主要保留预测值（即保留 IMU 积分结果）
@@ -359,13 +363,15 @@ void TandemLeg::slip_detect()
     ekf::Q[2][2] = 0.5f;
     ekf::Q[3][3] = 0.5f;
   }
-   else {
-     R = R_data;
-     slip_flag_ = false;
-   }
-   if(std::abs(innovation_v) <= SLIP_OVER_THRESHOLD) {
-       R = R_data;
-   }
+  // else {
+  //   R = R_data;
+  //   slip_flag_ = false;
+  // }
+  //在0附近时来回切？
+  // if(std::abs(innovation_v) <= SLIP_OVER_THRESHOLD) {
+  //     // 正常情况，恢复正常测量噪声
+  //     R = R_data;
+  // }
 }
 
 void TandemLeg::support_F_calc()
@@ -392,74 +398,3 @@ void TandemLeg::support_F_calc_leg(Leg & leg)
 
 
 \end{minted}
-\appendixsection{TransSAC训练超参数配置}\label{sec:appendix-transsac}
-\begin{minted}[breaklines,linenos,fontsize=\small]{python}
-    parser = argparse.ArgumentParser()
-    # running devices configuration
-    parser.add_argument('--Env_dvc', type=str, default='cuda:0', help='running device for Sparrow Env')
-    parser.add_argument('--A_dvc', type=str, default='cuda:0', help='running device for Actor')
-    parser.add_argument('--B_dvc', type=str, default='cuda:0', help='running device for Buffer of Sharer')
-    parser.add_argument('--L_dvc', type=str, default='cuda:0', help='running device for Learner')
-
-    # training strategy configuration
-    parser.add_argument('--exp_name', type=str, default='ColorDynamic_TransSAC', help='Experiment name')
-    parser.add_argument('--seed', type=int, default=0, help='random seed')
-    parser.add_argument('--max_train_steps', type=int, default=int(2E6), help='Max training total steps')
-    parser.add_argument('--random_steps', type=int, default=int(1E4), help='steps for random policy exploration')
-    parser.add_argument('--batch_size', type=int, default=1024, help='Batch size')
-    parser.add_argument('--gamma', type=float, default=0.99, help='Discounted Factor')
-    parser.add_argument('--lr', type=float, default=5e-5, help='Learning rate')
-    parser.add_argument('--alpha', type=float, default=0.2, help='init alpha')
-    parser.add_argument('--adaptive_alpha', type=str2bool, default=True, help='Use adaptive alpha turning')
-    parser.add_argument('--update_every', type=int, default=10, help='training frequency')
-    parser.add_argument('--train_repeat', type=int, default=12, help='Extra train repeats per update trigger')
-    parser.add_argument('--upload_freq', type=int, default=int(500), help='actor download freq, in batch steps')
-    parser.add_argument('--save_interval', type=int, default=int(100), help='Model save frequency, in batch steps')
-    parser.add_argument('--eval_interval', type=int, default=int(5e3), help='Model evaluation frequency')
-    parser.add_argument('--reset_freq', type=int, default=int(3.2e3), help='training env reset frequency (curriculum learning), in total steps')
-
-    # Transformer configuration
-    parser.add_argument('--net_width', type=int, default=32, help='Linear net width')
-    parser.add_argument('--hid_shape', type=list, default=[200, 200], help='Hidden layer shape')
-    parser.add_argument('--T', type=int, default=10, help='length of time window')
-    parser.add_argument('--H', type=int, default=4, help='Number of Head')
-    parser.add_argument('--L', type=int, default=1, help='Number of Transformer Encoder Layers')
-\end{minted}
-
-% \begin{table}[!htb]
-%   \caption{同济大学本科生成绩等级与绩点对照}\label{tab:grading-system}
-%   \centering
-%   \begin{tabular}{@{}ccccc@{}} \toprule
-%     \textbf{课程成绩} & \textbf{成绩等级} & \textbf{课程绩点} & \textbf{百分制折算值} \\ \midrule
-%     优（Excellent） & A & 5 & 95 \\
-%     良（Good）      & B & 4 & 85 \\
-%     中（Fair）      & C & 3 & 75 \\
-%     及格（Pass）    & D & 2 & 65 \\
-%     不及格（Failed）& F & 0 & 30 \\ \bottomrule
-%   \end{tabular}
-% \end{table}
-
-% 平均绩点（GPA）计算公式为：
-% \begin{equation}\label{eq:gpa}
-%   \text{GPA} = \frac{\sum(\text{课程学分} \times \text{课程绩点})}{\sum\text{课程学分}}
-% \end{equation}
-% 全部课程的百分制平均成绩按以下公式折算：
-% \begin{equation}\label{eq:avg-score}
-%   \text{百分制平均成绩} = \frac{\sum(\text{百分制成绩折算值} \times \text{课程学分})}{\sum\text{课程学分}}
-% \end{equation}
-
-% \appendixsubsection{补充数据表}
-
-% \cref{tab:appendix-sample} 列出了更多测试样本的详细数据。
-
-% \begin{table}[!htb]
-%   \caption{补充测试数据}\label{tab:appendix-sample}
-%   \centering
-%   \begin{tabular}{@{}cccc@{}} \toprule
-%     \textbf{样本编号} & \textbf{输入值} & \textbf{输出值} & \textbf{误差} \\ \midrule
-%     1 & 0.50 & 0.48 & 0.02 \\
-%     2 & 1.00 & 0.97 & 0.03 \\
-%     3 & 1.50 & 1.52 & 0.02 \\
-%     4 & 2.00 & 1.98 & 0.02 \\ \bottomrule
-%   \end{tabular}
-% \end{table}
