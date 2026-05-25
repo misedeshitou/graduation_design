@@ -4,7 +4,7 @@
 其中机器人底盘及上部结构为倒立摆的“滑块”，腿部结构等效为一根虚拟腿杆件作为“摆杆”，轮腿模型可由此简化为一阶倒立摆模型。Wang的工作\cite{yang2023control}中采取同样的简化方式，而本毕业设计将两条腿同时考虑进入建模，以避免两条腿分开控制的不协同性，并且可将机器人偏航角也考虑进入状态变量进行控制。
 
 \section{电缆通道检测机器人的简化模型}
-\begin{figure}[H]
+\begin{figure}[htbp]
   \centering
   \includegraphics[width=0.5\textwidth]{figures/one_order.png}
   \caption{机器人简化一阶倒立摆示意图}
@@ -13,7 +13,7 @@
 
 \subsection{系统描述与参数定义}
 该系统由一个轮子（质量为 $M$）和一个单摆杆（质量为 $m$）组成。我们采用拉格朗日力学法（Lagrange Equation）进行建模。定义系统变量如下：
-\begin{table}[H]
+\begin{table}[htbp]
   \centering
   \caption{倒立摆参数表}\label{tab:one_order_definition}
   \renewcommand{\arraystretch}{1.3}

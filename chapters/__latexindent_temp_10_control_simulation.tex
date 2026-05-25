@@ -13,7 +13,7 @@
 4）运行仿真并收集数据：通过运行仿真，我们收集了机器人在不同场景下的电机控制输入和状态量的输出数据。
 
 \section{控制框架设计}
-\begin{figure}[H]
+\begin{figure}[http]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/control_framework.png}
   \caption{控制框架设计}
@@ -21,28 +21,28 @@
 \end{figure}
 在simulink中搭建了一个控制框架，如图\ref{fig:control-framework}所示。该框架包括以下几个模块：
 \subsection{仿真环境搭建}
-\begin{figure}[H]
+\begin{figure}[http]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/simulink_env.png}
   \caption{仿真环境搭建}
   \label{fig:simulation-environment}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[http]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/model_simulink_outside.png}
   \caption{轮腿机器人建模外部接口}
   \label{fig:model-simulink-outside}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[http]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/model_simulink_inside.png}
   \caption{轮腿机器人建模内部实现}
   \label{fig:model-simulink-inside}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[http]
   \centering
   \includegraphics[width=0.5\textwidth]{figures/simulink_model.png}
   \caption{机器人建模}
@@ -50,14 +50,14 @@
 \end{figure}
 
 \subsection{lqr控制模块}
-\begin{figure}[H]
+\begin{figure}[http]
   \centering
   \includegraphics[width=0.3\textwidth]{figures/lqr_outside.png}
   \caption{lqr控制器外部接口}
   \label{fig:lqr-outside}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[http]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/lqr_inside.png}
   \caption{lqr控制器内部实现}
@@ -260,31 +260,31 @@ lqr_R = [20,      0,       0,       0;
 \end{figure}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.7\textwidth]{figures/simulink_theta.png}
+  \includegraphics[width=0.6\textwidth]{figures/simulink_theta.png}
   \caption{状态量腿角度变化曲线}
   \label{fig:theta}
 \end{figure}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.7\textwidth]{figures/simulink_dtheta.png}
+  \includegraphics[width=0.6\textwidth]{figures/simulink_dtheta.png}
   \caption{状态量腿角速度变化曲线}
   \label{fig:dtheta}
 \end{figure}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.7\textwidth]{figures/simulink_x.png}
+  \includegraphics[width=0.6\textwidth]{figures/simulink_x.png}
   \caption{状态量机器人水平位移变化曲线}
   \label{fig:x}
 \end{figure}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.7\textwidth]{figures/simulink_theta_b.png}
+  \includegraphics[width=0.6\textwidth]{figures/simulink_theta_b.png}
   \caption{状态量机体倾角变化曲线}
   \label{fig:theta_b}
 \end{figure}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.7\textwidth]{figures/simulink_dtheta_b.png}
+  \includegraphics[width=0.6\textwidth]{figures/simulink_dtheta_b.png}
   \caption{状态量机体倾角速度变化曲线}
   \label{fig:dtheta_b}
 \end{figure}

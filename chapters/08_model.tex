@@ -150,16 +150,17 @@
 %     \end{scope}
 
 %     % 顶部字母 A
-%     \node[font=\Huge] at ($(BodyCenter) + (0, 2.5)$) {$A$};
+%     % \node[font=\Huge] at ($(BodyCenter) + (0, 2.5)$) {$A$};
 
 % \end{tikzpicture}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.7\textwidth]{figures/leg_model.png}
-  \caption{轮腿机器人简化建模示意图}
-  \label{fig:leg-model}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.75\textwidth,height=0.45\textheight,keepaspectratio]{figures/leg_model.png}
+    \caption{轮腿机器人简化建模示意图}
+    \label{fig:leg-model}
 \end{figure}
+\FloatBarrier
 
 \section{变量定义}
 
@@ -215,7 +216,8 @@
     $I_z$ & 机器人$z$轴转动惯量 &  \\
 \end{longtable}
 
-*1：实际机器人腿部为五连杆机构，腿长可变，长度由腿部控制器控制，且质心位置、转动惯量均随腿长变化。\\
+*1：实际机器人腿部为五连杆机构，腿长可变，长度由腿部控制器控制，且质心位置、转动惯量均随腿长变化。
+
 *2：绕z轴的转动惯量简化为常量。
 
 \section{运动学模型}
@@ -433,7 +435,7 @@ $}
 
 \subsection{五连杆运动学解算}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
   \centering
   \begin{tikzpicture}[scale=1.2, >=stealth]
     

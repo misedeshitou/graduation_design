@@ -258,7 +258,9 @@ DWA 算法表现欠佳的主要原因在于其固有的“短视”特性。作�
         \bottomrule
     \end{tabular}
 \end{table}
+
 奖励的组合方式为：
+
 \begin{equation}
     \texttt{self.reward\_vec} = 0.5 \times R_{\mathrm{distance}} + R_{\mathrm{orientation}} \times R_{\mathrm{forward}} - 0.5 \times R_{\mathrm{retreat\_slowdown}} - 0.5
 \end{equation}
@@ -526,7 +528,7 @@ DWA 算法表现欠佳的主要原因在于其固有的“短视”特性。作�
 
 当两端的进程争夺相同的锁时，例如，当演员和学习者都访问体验池时，旋转锁机制会导致未能获取锁的进程在\texttt{while True}循环中进入高频轮询状态。 在这种状态下，它保持高频率的轮询（$10^{-4}$秒级），而不是暂停和等待。 张量转移操作需要很少的时间。 因此，这种短期轮询机制可以确保数据安全，同时保持低等待开销。
 
-\begin{figure}[http]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/ASL_analysis.png}
   \caption{ASL架构性能分析}
@@ -548,7 +550,7 @@ DWA 算法表现欠佳的主要原因在于其固有的“短视”特性。作�
 
 \end{enumerate}
 
-\begin{figure}[http]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/buffer.png}
   \caption{ASL架构训练时共享数据中枢的经验池占用率分析}
@@ -557,7 +559,7 @@ DWA 算法表现欠佳的主要原因在于其固有的“短视”特性。作�
 由图\ref{fig:buffer-analysis} 可见，ASL 架构的共享数据中枢在训练过程中表现出极高的稳定性与效率：在横轴（Step）的最左侧，紫线几乎是垂直向上飙升的。这表明系统在训练初期就迅速填满了经验池，达到了预设的 100 万条转移数据的容量上限。随后，经验池的占用率曲线趋于平坦，稳定在 100\% 的水平，说明系统成功实现了环形覆盖机制，同时侧面印证了ASL系统的采集数据高效性。
 
 \subsection{SAC算法评估分析}
-\begin{figure}[http]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/SAC_ASL_metrics_trend.png}
   \caption{SAC算法到达率、平均每回合步数和平均每回合奖励的训练趋势展示}
@@ -614,13 +616,13 @@ Actor 网络经过 $N_P$ 层 MLP 后输出策略分布参数；Critic 包含两�
 \end{enumerate}
 
 \subsection{Transformer训练调试与超参数配置}
-\begin{figure}[http]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.9\textwidth,height=0.38\textheight,keepaspectratio]{figures/bad_transSAC/bad_transSAC_ASL_train_combined.png}
     \caption{TransSAC 训练中策略网络崩塌训练记录}
     \label{fig:transSAC-train-bad}
 \end{figure}
-\begin{figure}[http]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.7\textwidth,height=0.35\textheight,keepaspectratio]{figures/bad_transSAC/bad_transSAC_eval_combined.png}
     \caption{TransSAC 训练中策略网络崩塌评估结果}
@@ -655,7 +657,9 @@ TransSAC模型面临着在早期培训阶段政策网络崩溃的明显挑战。
 \end{enumerate}
 
 按上述流程逐项排查并调整，最终训练收敛。
+
 \subsection{TransSAC算法评估分析}
+
 评估结果如下：
 
 \begin{figure}[H]
@@ -674,33 +678,34 @@ TransSAC模型面临着在早期培训阶段政策网络崩溃的明显挑战。
 
 与普通SAC相比，TransSAC显示出更稳定的到达分数，即使在早期训练阶段，也约为50\%。 这一结果表明，时间建模确实提高了决策质量。 在以后的验证比较中，这种架构的优势将被更精确地衡量。
 
-\begin{figure}[http]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/experiment1_stitched.png}
   \caption{TransSAC 训练中智能体学到的高级避障技能展示（序列1）}
   \label{fig:action_1}
 \end{figure}
 
-\begin{figure}[http]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/experiment2_stitched.png}
   \caption{TransSAC 训练中智能体学到的高级避障技能展示（序列2）}
   \label{fig:action_2}
 \end{figure}
 
-\begin{figure}[http]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/experiment3_stitched.png}
   \caption{TransSAC 训练中智能体学到的高级避障技能展示（序列3）}
   \label{fig:action_3}
 \end{figure}
+
 从上述实验序列可以看出，经过充分训练的 TransSAC 智能体学会了对动态障碍物的主动闪避、等待等在复杂环境中的路径优化的高级导航技能。
 \section{路径规划算法对比}
 
 为了全面评估所提出的算法在复杂导航场景下的有效性与优越性，本节开展了详细的比较研究。评估过程主要分为两个维度：首先，将经典的局部路径规划器（DWA）与基于深度强化学习的算法进行基准对比；其次，在强化学习框架内部，对主流的 DQN、SAC\_ASL 算法与本研究提出的 TransSAC 算法进行横向性能剖析。评估的核心指标包括模型训练过程中的到达率（Arrival Rate）、累积奖励（Cumulative Reward）以及任务步数/路径长度（Episode Steps）。
 
 对于DWA经典算法，测试结果如下：
-\begin{table}[http]
+\begin{table}[H]
     \centering
     \caption{DWA经典算法测试结果}
     \label{tab:dwa_eval_result}
@@ -714,25 +719,29 @@ TransSAC模型面临着在早期培训阶段政策网络崩溃的明显挑战。
 \end{table}
 
 对于强化学习算法，不同训练轮数的模型表现如下：
-\begin{figure}[http]
+
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/comparison/arrival_rate.png}
   \caption{到达率对比}
   \label{fig:comparison_arrival_rate}
 \end{figure}
-\begin{figure}[http]
+
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/comparison/ep_r.png}
   \caption{累积奖励对比}
   \label{fig:comparison_ep_r}
 \end{figure}
-\begin{figure}[http]
+
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/comparison/ep_steps.png}
   \caption{路径长度对比}
   \label{fig:comparison_ep_steps}
 \end{figure}
-\begin{table}[http]
+
+\begin{table}[H]
     \centering
     \caption{三种路径规划算法综合性能对比}
     \label{tab:algo_comparison}
@@ -761,8 +770,8 @@ TransSAC模型面临着在早期培训阶段政策网络崩溃的明显挑战。
 图\ref{fig:comparison_arrival_rate}中的到达率比较曲线显示了算法之间收敛行为的明显差异。 TransSAC（绿色和红色曲线表示）收敛得非常快。 经过大约1000个训练步后，它的到达率迅速上升，并保持在0.8以上。 它最终收敛到约0.9左右的高值。 传统的SAC\_ASL算法（橙色曲线）最终达到类似的成功率，但其收敛速度较慢。 稳定下来大约需要6000步。 DQN算法（蓝色曲线）表现最差。 它的勘探效率在早期阶段很低，后来会出现明显的性能波动。 TransSAC的这一优势主要来自添加到网络结构中的变压器模块。 该模块中的自我注意机制可以很好地处理时间传感器数据，加快了对环境动态障碍物的策略学习。
 
 \subsubsection{长期政策和奖励获取：}
-图 \ref{fig:comparison_ep_r} 显示了训练期间累积奖励的趋势。 随着训练的进行，所有三种算法的累积奖励都会上升。 这意味着算法的奖励函数设计是合理有效的。 然而，TransSAC模型可以在训练的早期阶段迅速离开负奖励区域。 它还在后期保持最高的平均累积奖励。 这一发现证实，TransSAC网络不仅提高了到达目标的概率，而且还能做出更好的决策来避免碰撞和保持安全距离。 DQN算法显示出最慢的逐步改进，并且之后有明显的波动。 这些结果表明，TransSAC具有更强的时间序列感知能力，可以更准确地预测动态障碍物的移动路径，规划更顺畅、更高效的几乎全局最佳路径。
+图 \ref{fig:comparison_ep_r} 显示了培训期间累积奖励（Episode 奖励）的趋势。 随着训练的进行，所有三种算法的累积奖励都会上升。 这意味着算法的奖励函数设计是合理有效的。 然而，TransSAC模型可以在训练的早期阶段迅速离开负奖励区域。 它还在后期保持最高的平均累积奖励。 这一发现证实，TransSAC网络不仅提高了到达目标的概率，而且还能做出更好的决策来避免碰撞和保持安全距离。 DQN算法显示出最慢的逐步改进，并且之后有明显的波动。 这些结果表明，TransSAC具有更强的时间序列感知能力，可以更准确地预测动态障碍物的移动路径，规划更顺畅、更高效的几乎全局最佳路径。
 
-\subsubsection{路径效率与规划寻优：} 导航路径的长度是衡量规划效率的关键指标，在此实验中对应衡量指标为\texttt{ep\_steps}。如图\ref{fig:comparison_ep_steps} 的任务步数对比所示，在训练初期，由于处于随机探索阶段，各算法的步数均处于 400 步以上，表明个算法均未学习到高效策略。随着训练步数增长模型收敛，TransSAC 的步数下降最迅速，并在 2000 步左右率先收敛至 150 步附近的极小值。DQN 算法的步数下降最慢，且后期震荡较大。这一结果表明，TransSAC 能够更好地预测动态障碍物的运动轨迹，从而为智能体规划出更加高效的运动路径。
+\subsubsection{路径效率与规划寻优：} 导航路径的长度是衡量规划效率的关键指标，在此实验中对应衡量指标为\texttt{ep\_steps}。如图\ref{fig:comparison_ep_steps} 的任务步数（Episode Steps）对比所示，在训练初期，由于处于随机探索阶段，各算法的步数均处于 400 步以上，表明个算法均未学习到高效策略。随着训练步数增长模型收敛，TransSAC 的步数下降最迅速，并在 2000 步左右率先收敛至 150 步附近的极小值。DQN 算法的步数下降最慢，且后期震荡较大。这一结果表明，TransSAC 能够更好地预测动态障碍物的运动轨迹，从而为智能体规划出更加高效且接近全局最优的运动路径。
 
 综上所述，对比实验的结果有力地证明了 TransSAC 算法在复杂路径规划任务中的优越性。它不仅相较于经典 DWA 算法不会陷入局部最优的瓶颈，而且在收敛速度和路径最优性方面均优于传统强化学习算法 DQN 与 SAC 算法。
