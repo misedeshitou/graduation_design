@@ -112,7 +112,7 @@ x \\
 \tau
 \end{equation}
 
-对于一阶倒立摆（以及更为复杂的轮腿机器人系统），我们通常先证明其开环不稳定但完全可控，进而引入状态反馈（如 LQR 控制器）来实现闭环渐近稳定。以下是为您整理的论文接续内容，您可
+对于一阶倒立摆（以及更为复杂的轮腿机器人系统），我们通常先证明其开环不稳定但完全可控，进而引入状态反馈（如 LQR 控制器）来实现闭环渐近稳定。
 
 \subsection{系统可控性分析}
 
@@ -182,7 +182,7 @@ V(\mathbf{x}) = \mathbf{x}^T P \mathbf{x}
 \dot{V}(\mathbf{x}) = \dot{\mathbf{x}}^T P \mathbf{x} + \mathbf{x}^T P \dot{\mathbf{x}} = \mathbf{x}^T (A_{cl}^T P + P A_{cl}) \mathbf{x}
 \end{equation}
 
-为保证系统在平衡点处大范围渐近稳定，要求 $\dot{V}(\mathbf{x})$ 为负定，即存在对称正定矩阵 $Q$，满足连续代数黎卡提方程：
+为保证系统在平衡点处大范围渐近稳定，要求 $\dot{V}(\mathbf{x})$ 为负定，即存在对称正定矩阵 $Q$，满足闭环李雅普诺夫方程：
 \begin{equation}
 A_{cl}^T P + P A_{cl} = -Q
 \end{equation}

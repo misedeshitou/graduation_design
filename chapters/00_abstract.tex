@@ -1,14 +1,15 @@
 \MakeAbstract{
-本毕业设计针对电缆通道检测机器人，对比选择了轮腿构型的机器人进行研究，运动控制方面，本毕业设计首先对于轮腿进行全身建模，进行WBC（whole body control）全身控制，协同建模两条腿避免分别控制两侧腿导致倾倒。控制器设计方面，将五连杆腿简化为一条虚拟腿作为倒立摆进行控制，整体采用lqr控制器串联VMC转化为关节与轮毂电机输出。随后在matlab仿真平台上进行运动学动力学验证，机器人可连续通过四个0.25m障碍物，并保持稳定的运动状态。
+本毕业设计针对电缆通道检测机器人，对比选择了轮腿构型的机器人进行研究，运动控制方面，本毕业设计首先对于轮腿进行全身建模，简化模型后使用LQR＋VMC，协同建模两条腿避免分别控制两侧腿导致倾倒。控制器设计方面，将五连杆腿简化为一条虚拟腿作为倒立摆进行控制，整体采用lqr控制器串联VMC转化为关节与轮毂电机输出。随后在matlab仿真平台上进行运动学动力学验证，机器人可连续通过四个0.25m障碍物，并保持稳定的运动状态。
 
 在路径规划方面，本毕业设计对比了传统路径规划算法DWA与深度强化学习算法DQN和SAC，在开源环境Sparrow中进行仿真测试与参数调优。实验结果表明强化学习算法在到达率、路径效率等方面均明显优于传统路径规划算法。针对大规模数据训练加入ASL架构辅助训练，并在SAC上进行实践加快训练效率。在此基础上，本毕业设计在SAC算法前串联Transformer建构，融合历史雷达数据进行训练，增强了模型应对动态障碍物的能力，TransSAC在相同训练条件下收敛速度更快，最终到达率达到0.87，路径效率也更优。
 }{运动控制，深度强化学习，路径规划，TransSAC}
     
 \MakeAbstractEng{
+\enlargethispage{2\baselineskip}
 This graduation design focuses on a detection robot for cable tunnels, specifically researching a wheel-legged configuration.
 
 Motion Control and Modeling
-The design begins with a Whole Body Control approach based on a wheel-legged system. By synergistically modeling both legs rather than controlling them independently, the system effectively prevents tipping.
+First, a whole-body dynamic model of the wheel-legged robot is developed. Both legs and the robot's yaw motion are incorporated into a unified state-space model, avoiding the coordination problems associated with controlling the two legs independently and providing a basis for stable motion control.
 
 For the controller design, each five-link leg is simplified into a virtual leg acting as an inverted pendulum. The control architecture employs an LQR controller in series with VMC to map high-level commands into joint and hub motor outputs. Kinematic and dynamic verification conducted on the MATLAB simulation platform demonstrates that the robot can continuously traverse four 0.25m obstacles while maintaining a stable motion state.
 

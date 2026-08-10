@@ -2,7 +2,7 @@
 % tongjithesis -- Tongji University Thesis Template
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{tongjithesis}[2026/05/03 v1.4.1 Tongji University Thesis Class]
+\ProvidesClass{tongjithesis}[2026/05/19 v1.4.3 Tongji University Thesis Class]
 
 %% TongjiThesis
 %% Copyright 2023-2026 TJ-CSCCG
@@ -39,8 +39,8 @@
 \DeclareStringOption[circle]{fullwidthstop}
 % Define times option (default is false)
 \DeclareBoolOption[false]{times}
-% Define minted option (default is true)
-\DeclareBoolOption[true]{minted}
+% Define minted option (default is false)
+\DeclareBoolOption[false]{minted}
 % Define biblatex option (default is true)
 \DeclareBoolOption[true]{biblatex}
 % Define degree option: bachelor (default), master, doctor
@@ -49,6 +49,9 @@
 % 经管类属社科：编号要求依理工，撰写依理工模版。26 届为过渡期，可选 science 或
 % humanities；自 27 届起统一使用 science。
 \DeclareStringOption[science]{field}
+% Define algo option: algpseudocode (default, algorithm + algorithmicx + algpseudocode),
+% algorithm2e (standalone algorithm2e package)
+\DeclareStringOption[algpseudocode]{algo}
 
 \DeclareDefaultOption{\PassOptionsToClass{\CurrentOption}{ctexbook}}
 \ProcessKeyvalOptions*
@@ -70,6 +73,11 @@
     \ClassWarning{tongjithesis}{field=\tongjithesis@field\space is unknown. Falling back to science format}%
   }%
 }
+\newif\iftongjithesis@algorithmtwoe
+\expandafter\ifstrequal\expandafter{\tongjithesis@algo}{algorithm2e}{%
+  \tongjithesis@algorithmtwoetrue
+}{}{}
+\let\iftjalgorithmtwoe\iftongjithesis@algorithmtwoe
 
 % ==========================================
 % Class Loading
@@ -90,9 +98,9 @@
 \newcommand{\tjfontchapter}{\zihao{-3}}      % 章标题：小三号
 \newcommand{\tjfontheading}{\zihao{4}}       % 摘要 / 目录 / 参考文献 / 谢辞标题：四号
 \newcommand{\tjfontbody}{\zihao{-4}}         % 正文 / 二三级标题 / 关键词 / 摘要正文：小四号
-\newcommand{\tjfontcaption}{\zihao{-5}}      % 表题 / 图题：小五号
+\newcommand{\tjfontcaption}{\zihao{5}}       % 表题 / 图题：五号
 \newcommand{\tjfontcover}{\zihao{-3}}        % 封面表格字段值：小三号（与 \tjfontchapter 同字号，语义分离）
-\newcommand{\tjfonttable}{\zihao{-5}}        % 表内文字：小五号
+\newcommand{\tjfonttable}{\zihao{-5}\fontsize{9}{18}\linespread{1}\selectfont} % 表内文字：小五号，行距 18 磅（官方规范；\linespread{1} 隔离全文 1.625 倍行距）
 \newcommand{\tjfontinfotitle}{\zihao{3}}     % 信息说明页标题：三号（仅此页专用）
 % Spacing
 % Word 的 "0.5 行" 按单倍行距字体行高计算（≈ 字号 × 1.2 × 0.5 = 0.6em），
@@ -106,6 +114,7 @@
 \newcommand{\tjinfofieldspread}{1.6667}   % 四号宋体 28 磅：28÷(14×1.2)≈5/3
 \newcommand{\tjinfoabstractspread}{1.25}  % 摘要小四 18 磅：18÷(12×1.2)=5/4（精确）
 \newcommand{\tjinfotitlevspace}{0.8em}    % 多行课题名称后的间距补偿（在四号上下文中解析）
+\newcommand{\tjcoverlinestretch}{0.8}   % 封面字段 parbox 行距倍率（压缩行距以适配窄框）
 % Cover text：理工=毕业设计（论文）；文科=毕业论文（设计）
 \iftongjithesis@humanities
   \newcommand{\tjcovertext}{毕业论文（设计）}
@@ -162,6 +171,9 @@
 
 \RequirePackage{upgreek}
 
+% Circled number rendering (Unicode 0–50 + circledsteps 51+)
+\InputIfFileExists{tongji-circled.def}{}{\ClassError{tongjithesis}{Missing tongji-circled.def}{}}
+
 % Tables and figures
 \RequirePackage{float}
 \RequirePackage{multirow}
@@ -170,6 +182,7 @@
 \RequirePackage{longtable}
 \RequirePackage{threeparttable}
 \RequirePackage{threeparttablex}
+\RequirePackage{tabularx} % 三线表两端与页面对齐（官方规范）
 % Caption customization (must load before subcaption, which internally loads caption)
 \RequirePackage{caption}
 \DeclareCaptionLabelSeparator{tj@twospace}{\ ~}
@@ -181,11 +194,21 @@
 \captionsetup[listing]{skip=12pt}
 
 \RequirePackage{subcaption}
+% Override subcaption default `font+=smaller` so sub-captions match main caption size.
+% Other settings (labelsep, labelformat, skip) inherit defaults — labelsep follows the
+% global tj@twospace from line above; labelformat=parens renders `(a)` style.
+\captionsetup[sub]{font={tj@caption,tj@songti}}
 
 % Algorithms and code listings
-\RequirePackage{algorithm}
-\RequirePackage{algorithmicx}
-\RequirePackage{algpseudocode}
+\iftongjithesis@algorithmtwoe
+  \RequirePackage[ruled,linesnumbered,algochapter]{algorithm2e}
+  \let\c@algorithm\c@algocf
+  \renewcommand{\thealgocf}{\thealgorithm}
+\else
+  \RequirePackage{algorithm}
+  \RequirePackage{algorithmicx}
+  \RequirePackage{algpseudocode}
+\fi
 
 % Always load listings package first (mandatory)
 \RequirePackage{listings}
@@ -237,15 +260,17 @@
   baselinestretch=1,
   tabsize=4,
   breaklines=true,
-  bgcolor=bg,
   mathescape=true
 }
+% fvextra v1.8.0 (2024-09-14) introduced bgcolor; guard for older TeX Live
+\@ifpackagelater{fvextra}{2024/09/14}{%
+  \fvset{bgcolor=bg}%
+}{}
 
 % Conditionally load minted package (optional)
 \iftongjithesis@minted
   \RequirePackage[chapter]{minted}
   \setminted{linenos,
-    bgcolor=bg,
     frame=single,
     framesep=2mm,
     rulecolor=\color{gray!40},
@@ -253,6 +278,10 @@
     breaklines,
     mathescape,
     escapeinside=||}
+  % fvextra v1.8.0 (2024-09-14) introduced bgcolor; guard for older TeX Live
+  \@ifpackagelater{fvextra}{2024/09/14}{%
+    \setminted{bgcolor=bg}%
+  }{}
   \renewcommand{\listingscaption}{代码}
 
   % When using minted, DO NOT redefine the listing environment
@@ -305,10 +334,43 @@
     style=gb7714-2015,
     natbib=true,
   ]{biblatex}
+  % 参考文献序号左对齐至页边距，悬挂统一为 0.74cm（与 Word 模板一致）。
+  % 0.74cm 为最小宽度；若实际最宽标签（如 [100]+ 三位数引用）超过 0.74cm，
+  % 则使用实际宽度，避免标签溢出与正文首字符重叠。
+  \defbibenvironment{bibliography}
+    {\list
+       {\printtext[labelnumberwidth]{%
+          \printfield{labelprefix}%
+          \printfield{labelnumber}}}
+       {\setlength{\labelwidth}{\labelnumberwidth}%
+        \ifdim\labelwidth<0.74cm \setlength{\labelwidth}{0.74cm}\fi
+        \setlength{\labelsep}{0pt}%
+        \setlength{\leftmargin}{\labelwidth}%
+        \setlength{\itemindent}{0pt}%
+        \setlength{\itemsep}{\bibitemsep}%
+        \setlength{\parsep}{\bibparsep}%
+        \renewcommand*{\makelabel}[1]{##1\hfill}}}
+    {\endlist}
+    {\item}
 \else
   \RequirePackage[sort&compress]{gbt7714}
   \bibliographystyle{gbt7714-numerical}
   \setlength{\bibsep}{3pt}
+  % 参考文献序号左对齐至页边距，悬挂统一为 0.74cm（与 Word 模板一致）。
+  % gbt7714 已将 \@biblabel 改为 [#1]\hfill（左对齐）。natbib（gbt7714 内部加载）
+  % 重写了 thebibliography，绕过 book.cls 的 \@openbib@code 钩子，因此须直接
+  % 替换 numeric 模式下的列表参数宏 \@bibsetup（natbib 默认 \let 至 \NAT@bibsetnum）。
+  % 0.74cm 为最小宽度；若实际最宽标签更宽（如 [100]+），则使用实际宽度。
+  % \AtBeginDocument 确保替换在 natbib 自身 \NAT@set@cites 钩子（同样在 \AtBeginDocument）
+  % 之后生效；用独立辅助宏 \tj@bibsetup 避免 \xdef 展开期 ## 参数歧义。
+  \newcommand{\tj@bibsetup}[1]{%
+    \settowidth\labelwidth{\@biblabel{#1}}%
+    \ifdim\labelwidth<0.74cm \setlength{\labelwidth}{0.74cm}\fi
+    \setlength{\leftmargin}{\labelwidth}%
+    \setlength{\labelsep}{0pt}%
+    \setlength{\itemsep}{\bibsep}%
+    \setlength{\parsep}{\z@}}
+  \AtBeginDocument{\let\@bibsetup\tj@bibsetup}
 \fi
 
 % \tjbibresource{file1,file2,...} — register bib files (preamble only)
@@ -342,6 +404,28 @@
 
 % Line spacing
 \setstretch{\tjlinespread}  % 设置全文行距
+
+% Display math spacing — 公式段前 0 行，段后 0 行（官方规范）
+% 公式前后不额外增加间距，仅依靠正文 1.5 倍行距的自然行间过渡。
+\abovedisplayskip 0\p@
+\abovedisplayshortskip 0\p@
+\belowdisplayskip \abovedisplayskip
+\belowdisplayshortskip 0\p@
+
+% Table float spacing — 表格/图片上下与正文之间各空一行（官方规范）
+\setlength{\textfloatsep}{\baselineskip}
+\setlength{\intextsep}{\baselineskip}
+\setlength{\floatsep}{0.5\baselineskip}
+
+% 图居中（官方规范）
+\AtBeginEnvironment{figure}{\centering}
+
+% 禁止 twoside 模式下拉伸垂直间距
+% book 文档类在 twoside 模式下默认启用 \flushbottom，强制所有页面底部对齐，
+% 这会拉伸 \parskip 等带 stretch 的垂直间距，导致标题附近的空行行距不均匀。
+% \raggedbottom 允许页面底部自然变化，保证全文行距一致。
+% 使用 \AtEndOfClass 确保在所有 class 级代码执行完毕后覆盖。
+\AtEndOfClass { \raggedbottom }
 
 % ==========================================
 % Page Layout
@@ -503,7 +587,16 @@
   \counterwithin{equation}{section}%
   \counterwithin{algorithm}{section}%
   \counterwithin{listing}{section}%
-  \counterwithin{lstlisting}{section}%
+  \@ifundefined{c@lstlisting}{}{\counterwithin{lstlisting}{section}}%
+  \counterwithin{thm}{section}%
+  \counterwithin{cor}{section}%
+  \counterwithin{lem}{section}%
+  \counterwithin{prop}{section}%
+  \counterwithin{conj}{section}%
+  \counterwithin{assume}{section}%
+  \counterwithin{dfn}{section}%
+  \counterwithin{exmp}{section}%
+  \counterwithin{rem}{section}%
   % 理工科：「A. 节名」；文科：「（A） 节名」（括号来自正文 section/name 延续，无点号）
   \iftongjithesis@humanities
     \ctexset{section/number={\thesection},section/aftername={\hspace{0.5em}}}%
@@ -529,6 +622,7 @@
 % 表格内所有字体均为小五
 \AtBeginEnvironment{table}{\tjfonttable}
 \AtBeginEnvironment{tabular}{\tjfonttable}
+\AtBeginEnvironment{tabular*}{\tjfonttable}
 \AtBeginEnvironment{tabularx}{\tjfonttable}
 \AtBeginEnvironment{longtable}{\tjfonttable}
 \AtBeginEnvironment{tablenotes}{\tjfonttable}
@@ -548,7 +642,7 @@
 
 \setlist[enumerate]{nosep,labelsep=0pt}
 \setlist[enumerate,1]{label=（\arabic*）,left=2em,nosep,labelsep=0pt,wide=\parindent}
-\setlist[enumerate,2]{label=\Circled{\arabic*},nosep,labelsep=0pt,labelwidth=1em,listparindent=0pt}
+\setlist[enumerate,2]{label=\TJCircled{\tj@cval{enumii}},nosep,labelsep=0pt,labelwidth=1em,listparindent=0pt}
 
 \setlist[itemize]{nosep}
 \setlist[itemize,1]{wide=\parindent}
@@ -612,8 +706,10 @@
 % Both are bound to chapter, then lstlisting is aliased to listing.
 \AtBeginDocument{%
   \counterwithin{listing}{chapter}%
-  \counterwithin{lstlisting}{chapter}%
-  \let\c@lstlisting\c@listing
+  \@ifundefined{c@lstlisting}{}{%
+    \counterwithin{lstlisting}{chapter}%
+    \let\c@lstlisting\c@listing
+  }%
 }
 
 % 设置正文页内章节标题格式
@@ -692,7 +788,7 @@
     subsubsection/name     = {（,）},
     subsubsection/number   = {\arabic{subsubsection}},
     subsubsection/aftername = {\hspace{0.5em}},
-    paragraph/number    = {\Circled{\arabic{paragraph}}},
+    paragraph/number    = {\TJCircled{\the\c@paragraph}},
     paragraph/aftername = {\hspace{0.5em}},
   }
   % TOC 目录列宽与分隔符
@@ -714,7 +810,9 @@
   % 均需在 document 开始后解绑，确保顺序正确
   \AtBeginDocument{%
     \counterwithout{listing}{chapter}%
-    \counterwithout{lstlisting}{chapter}%
+    \@ifundefined{c@lstlisting}{}{%
+      \counterwithout{lstlisting}{chapter}%
+    }%
     \counterwithout{thm}{chapter}%
     \counterwithout{cor}{chapter}%
     \counterwithout{lem}{chapter}%
@@ -728,7 +826,7 @@
 \fi
 
 % 脚注编号使用①②③… (官方模板规范)
-\renewcommand{\thefootnote}{\Circled{\arabic{footnote}}}
+\renewcommand{\thefootnote}{\TJCircled{\the\c@footnote}}
 
 
 % ==========================================
@@ -745,8 +843,8 @@
 % ==========================================
 % Math and Theorem Environments
 % ==========================================
-
 \theoremstyle{definition}
+
 \newtheorem{thm}{定理\hspace{0.05pt}}[chapter]
 \newtheorem{cor}{推论\hspace{0.05pt}}[chapter]
 \newtheorem{lem}{引理\hspace{0.05pt}}[chapter]
@@ -771,26 +869,36 @@
 % ==========================================
 
 % 伪代码
-\renewcommand{\algorithmicrequire}{\textbf{输入: }}
-\renewcommand{\algorithmicensure}{\textbf{输出: }}
-\renewenvironment{algorithm}
-{
-  \vskip 20pt
-  \refstepcounter{algorithm}% New algorithm
-  \hrule height.8pt depth0pt \kern2pt% \@fs@pre for \@fs@ruled
-  \renewcommand{\caption}[2][\relax]{% 使用中文 caption
-    {\raggedright\textbf{算法~\thealgorithm} ##2\par}%
-    \ifx\relax##1\relax % #1 is \relax
-      \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
-    \else % #1 is not \relax
-      \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
-    \fi
-    \kern2pt\hrule\kern2pt
-  }
-}{
-  \kern2pt\hrule\relax
-  \vskip 20pt
-}% \@fs@post for \@fs@ruled
+\iftongjithesis@algorithmtwoe
+  \SetAlgorithmName{算法}{算法}{算法列表}
+  \SetKwInput{KwIn}{输入}
+  \SetKwInput{KwOut}{输出}
+  \gdef\algocf@Vspace{\vskip\baselineskip\relax}
+  \AtBeginEnvironment{algorithm}{\linespread{1.0}\selectfont}
+  \AfterEndEnvironment{algorithm}{\vspace{\baselineskip}}
+\else
+  \renewcommand{\algorithmicrequire}{\textbf{输入: }}
+  \renewcommand{\algorithmicensure}{\textbf{输出: }}
+  \AtBeginEnvironment{algorithmic}{\linespread{1.0}\selectfont}
+  \renewenvironment{algorithm}
+  {
+    \vskip\baselineskip
+    \refstepcounter{algorithm}% New algorithm
+    \hrule height.8pt depth0pt \kern2pt% \@fs@pre for \@fs@ruled
+    \renewcommand{\caption}[2][\relax]{% 使用中文 caption
+      {\raggedright\textbf{算法~\thealgorithm} ##2\par}%
+      \ifx\relax##1\relax % #1 is \relax
+        \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
+      \else % #1 is not \relax
+        \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
+      \fi
+      \kern2pt\hrule\kern2pt
+    }
+  }{
+    \kern2pt\hrule\relax
+    \vskip\baselineskip
+  }% \@fs@post for \@fs@ruled
+\fi
 
 % ==========================================
 % Cross-Referencing Commands
@@ -853,6 +961,9 @@
 \crefformat{algorithm}{#2算法~#1#3}
 \crefmultiformat{algorithm}{#2算法~#1#3}{和#2算法~#1#3}{、#2算法~#1#3}{和#2算法~#1#3}
 \crefrangeformat{algorithm}{#3算法~#1#4~至#5算法~#2#6}
+\crefformat{algocf}{#2算法~#1#3}
+\crefmultiformat{algocf}{#2算法~#1#3}{和#2算法~#1#3}{、#2算法~#1#3}{和#2算法~#1#3}
+\crefrangeformat{algocf}{#3算法~#1#4~至#5算法~#2#6}
 \crefformat{FancyVerbLine}{#2第~#1~行#3}
 \crefmultiformat{FancyVerbLine}{#2第~#1~行#3}{和#2第~#1~行#3}{、#2第~#1~行#3}{和#2第~#1~行#3}
 \crefrangeformat{FancyVerbLine}{#3第~#1~行#4至#5第~#2~行#6}
@@ -913,17 +1024,97 @@
 
 \newlength{\covertextwidth}
 \newlength{\covermaxwidth}
+\newlength{\coverparwidth}
 
 \newcommand{\ulinecentered}[1]{
+  \bgroup
+  \let\\\relax
   \setlength{\covertextwidth}{\widthof{#1}}
-  \setlength{\covermaxwidth}{20em} % Set the maximum width you allow
-  \ifthenelse{\lengthtest{\covertextwidth > \covermaxwidth}}{
-    % Calculate scale factor and scale down text if too wide
-    \pgfmathsetmacro{\scalefactor}{\covermaxwidth/\covertextwidth}
-    \uline{\makebox[\covermaxwidth][c]{\scalebox{\scalefactor}[1]{#1}}}
-  }{
-    \uline{\makebox[\covermaxwidth][c]{#1}} % Use normal text if within the limit
-  }
+  \egroup
+  \setlength{\covermaxwidth}{20em}
+  \ifdim\covertextwidth > \covermaxwidth
+    \ifdim\covertextwidth > 1.95\covermaxwidth
+      \setlength{\coverparwidth}{0.53\covertextwidth}
+      \pgfmathsetmacro{\coverscale}{\covermaxwidth / \coverparwidth}
+      \uline{%
+        \scalebox{\coverscale}[1]{%
+          \parbox[b]{\coverparwidth}{%
+            \centering
+            \renewcommand{\baselinestretch}{\tjcoverlinestretch}\selectfont
+            #1%
+          }%
+        }%
+      }
+    \else
+      \uline{%
+        \parbox[b]{\covermaxwidth}{%
+          \centering
+          \renewcommand{\baselinestretch}{\tjcoverlinestretch}\selectfont
+          #1%
+        }%
+      }
+    \fi
+  \else
+    \uline{%
+      \makebox[\covermaxwidth][c]{%
+        \parbox[b]{\covermaxwidth}{%
+          \centering
+          \renewcommand{\baselinestretch}{\tjcoverlinestretch}\selectfont
+          #1%
+        }%
+      }%
+    }
+  \fi
+}
+
+\def\tj@titlecnbreak@opt[#1]{\unskip\ignorespaces}
+\def\tj@titlecnbreak@star*{%
+  \@ifnextchar[{\tj@titlecnbreak@opt}{\unskip\ignorespaces}%
+}
+\newcommand{\tjtitlecninlinebreak}{%
+  \unskip
+  \@ifnextchar*{\tj@titlecnbreak@star}{%
+    \@ifnextchar[{\tj@titlecnbreak@opt}{\ignorespaces}%
+  }%
+}
+\newcommand{\tjtitlecninline}[1]{%
+  \begingroup
+    \let\\\tjtitlecninlinebreak
+    #1%
+  \endgroup
+}
+\def\tj@titleenbreak@opt[#1]{\unskip\space\ignorespaces}
+\def\tj@titleenbreak@star*{%
+  \@ifnextchar[{\tj@titleenbreak@opt}{\unskip\space\ignorespaces}%
+}
+\newcommand{\tjtitleeninlinebreak}{%
+  \unskip
+  \@ifnextchar*{\tj@titleenbreak@star}{%
+    \@ifnextchar[{\tj@titleenbreak@opt}{\space\ignorespaces}%
+  }%
+}
+\newcommand{\tjtitleeninline}[1]{%
+  \begingroup
+    \let\\\tjtitleeninlinebreak
+    #1%
+  \endgroup
+}
+
+\newcommand{\tj@abstractblock}[2]{%
+  \par\nointerlineskip
+  \begingroup
+    \setbox\@tempboxa\vbox{%
+      \hsize=\linewidth
+      \parindent=0pt
+      \parbox[t]{\linewidth}{%
+        \centering
+        #1%
+        \strut #2\strut\par
+      }%
+    }%
+    \box\@tempboxa
+  \endgroup
+  \par\nointerlineskip
 }
 
 % 论文基本信息配置
@@ -932,6 +1123,8 @@
 \newcommand{\student}[2]{\def\tongjiauthornumber{#1}\def\tongjiauthor{#2}}
 \newcommand{\thesistitle}[2]{\def\tongjithesistitle{#1}\def\tongjithesissubtitle{#2}}
 \newcommand{\thesistitleeng}[2]{\def\tongjithesistitleeng{#1}\def\tongjithesissubtitleeng{#2}}
+\newcommand{\abstracttitle}[2]{\def\tongjiabstracttitle{#1}\def\tongjiabstractsubtitle{#2}}
+\newcommand{\abstracttitleeng}[2]{\def\tongjiabstracttitleeng{#1}\def\tongjiabstractsubtitleeng{#2}}
 \newcommand{\thesisadvisor}[1]{\def\tongjithesisadvisor{#1}}
 \newcommand{\thesisdate}[3]{\def\tongjithesisyear{#1}\def\tongjithesismonth{#2}\def\tongjithesisday{#3}}
 
@@ -1009,8 +1202,8 @@
     \setlength{\parindent}{0pt}
 
     \savebox{\tj@titlebox}{\parbox[t]{\dimexpr\linewidth-5em\relax}{%
-      \tongjithesistitle
-      \ifx\tongjithesissubtitle\empty\else ——\tongjithesissubtitle\fi
+      \tjtitlecninline{\tongjithesistitle}%
+      \ifx\tongjithesissubtitle\empty\else——\tjtitlecninline{\tongjithesissubtitle}\fi
     }}%
     \infoline{课题名称}{\usebox{\tj@titlebox}}%
     \settodepth{\tj@titledp}{\usebox{\tj@titlebox}}%
@@ -1051,18 +1244,28 @@
 
 % 设置中文摘要页（毕业设计时标题改为"设计总说明"）
 \newcommand{\MakeAbstract}[2]{
-  \begin{center}\bfseries\heiti\tjfonttitle
-    \ \\
-    \vspace{-0.5em}
-    \tongjithesistitle
+  \vspace*{0.1em}
+  \tj@abstractblock{\bfseries\heiti\tjfonttitle}{%
+    \ifdefempty{\tongjiabstracttitle}{%
+      \tjtitlecninline{\tongjithesistitle}%
+    }{%
+      \tongjiabstracttitle
+    }%
+  }
+  \ifdefempty{\tongjiabstractsubtitle}{%
     \ifx\tongjithesissubtitle\empty\else
-      \\[0.2em]{\zihao{3}\tongjithesissubtitle}% 副标题：三号（官方模板规范）
+      \vspace{0.6em}%
+      \tj@abstractblock{\bfseries\heiti\zihao{3}}{\tjtitlecninline{\tongjithesissubtitle}}% 副标题：三号（官方模板规范）
     \fi
-  \end{center}
-  \vspace{-0.8em}
-  \begin{center}\heiti\tjfontheading
+  }{%
+    \vspace{0.6em}%
+    \tj@abstractblock{\bfseries\heiti\zihao{3}}{\tongjiabstractsubtitle}%
+  }
+  \vspace{0.8em}
+  \tj@abstractblock{\heiti\tjfontheading}{%
     \ifthenelse{\equal{\tongjiinfotype}{engineering}}{设计总说明}{摘\hspace{0.5em}要}
-  \end{center}
+  }
+  \vspace{1.6em}
 
   \begin{spacing}{\tjlinespread}
     \setlength{\parindent}{2em}
@@ -1070,27 +1273,34 @@
     \par
   \end{spacing}
 
-  \vskip 5mm
-  \noindent{\songti\tjfontbody{%
-      \textbf{关键词：}#2
-    }}~\\
+  \songti\tjfontbody
+  \vspace{\baselineskip}
+  {\noindent\textbf{关键词：}#2}\par
 }
 
 % 设置英文摘要页
 \newcommand{\MakeAbstractEng}[2]{
   \clearpage
-  \begin{center}\tjfonttitle
-    \ \\
-    \vspace{-0.5em}
-    \textbf{\tongjithesistitleeng}
+  \vspace*{0.1em}
+  \tj@abstractblock{\tjfonttitle\bfseries}{%
+    \ifdefempty{\tongjiabstracttitleeng}{%
+      \tjtitleeninline{\tongjithesistitleeng}%
+    }{%
+      \tongjiabstracttitleeng
+    }%
+  }
+  \ifdefempty{\tongjiabstractsubtitleeng}{%
     \ifx\tongjithesissubtitleeng\empty\else
-      \\[0.2em]{\zihao{3}\textbf{\tongjithesissubtitleeng}}% 副标题：三号（官方模板规范）
+      \vspace{0.6em}%
+      \tj@abstractblock{\zihao{3}\bfseries}{\tjtitleeninline{\tongjithesissubtitleeng}}% 副标题：三号（官方模板规范）
     \fi
-  \end{center}
-  \vspace{-0.8em}
-  \begin{center}\tjfontheading
-    \textbf{ABSTRACT}
-  \end{center}
+  }{%
+    \vspace{0.6em}%
+    \tj@abstractblock{\zihao{3}\bfseries}{\tongjiabstractsubtitleeng}%
+  }
+  \vspace{0.8em}
+  \tj@abstractblock{\tjfontheading\bfseries}{ABSTRACT}
+  \vspace{1.6em}
 
   \begin{spacing}{\tjlinespread}
     \setlength{\parindent}{2em}
@@ -1098,11 +1308,9 @@
     \par
   \end{spacing}
 
-  \vspace{1em}
-  \noindent{\tjfontbody
-    \textbf{Key words: }#2
-  }
-  \par
+  \tjfontbody
+  \vspace{\baselineskip}
+  {\noindent\textbf{Key words: }#2}\par
 }
 
 % ==========================================
