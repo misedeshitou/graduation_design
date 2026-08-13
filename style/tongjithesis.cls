@@ -334,6 +334,12 @@
     style=gb7714-2015,
     natbib=true,
   ]{biblatex}
+  % 优先在 URL 的标点处分行，避免将 https 等协议名单词拆开。
+  \setcounter{biburlnumpenalty}{10000}
+  \setcounter{biburlucpenalty}{10000}
+  \setcounter{biburllcpenalty}{10000}
+  % 条目之间不另加段距；正文行距已经提供足够的视觉分隔。
+  \setlength{\bibitemsep}{0pt}
   % 参考文献序号左对齐至页边距，悬挂统一为 0.74cm（与 Word 模板一致）。
   % 0.74cm 为最小宽度；若实际最宽标签（如 [100]+ 三位数引用）超过 0.74cm，
   % 则使用实际宽度，避免标签溢出与正文首字符重叠。
@@ -349,6 +355,8 @@
         \setlength{\itemindent}{0pt}%
         \setlength{\itemsep}{\bibitemsep}%
         \setlength{\parsep}{\bibparsep}%
+        \clubpenalty=10000
+        \widowpenalty=10000
         \renewcommand*{\makelabel}[1]{##1\hfill}}}
     {\endlist}
     {\item}
@@ -530,9 +538,14 @@
 % 设置摘要与目录页样式（如页眉、页脚等）
 \fancypagestyle{firststyle}{
   \fancyhf{}
-  \fancyhead[LO]{\hspace*{1cm}\includegraphics[height=1.14cm]{figures/tongji-header.pdf}~}
-  \fancyhead[RE]{~\includegraphics[height=1.14cm]{figures/tongji-header.pdf}\hspace*{1cm}}
-  \fancyhead[RO,LE]{\tjfontbody ~\tjheadertext~\\}
+  \@ifclasswith{tongjithesis}{twoside}{%
+    \fancyhead[LO]{\hspace*{1cm}\includegraphics[height=1.14cm]{figures/tongji-header.pdf}~}
+    \fancyhead[RE]{~\includegraphics[height=1.14cm]{figures/tongji-header.pdf}\hspace*{1cm}}
+    \fancyhead[RO,LE]{\tjfontbody ~\tjheadertext~\\}
+  }{%
+    \fancyhead[L]{\hspace*{1cm}\includegraphics[height=1.14cm]{figures/tongji-header.pdf}~}
+    \fancyhead[R]{\tjfontbody ~\tjheadertext~\\}
+  }
   \fancyfoot[C]{\tjfontbody \thepage}
   \renewcommand{\headrule}{\tjdoubleheadrule}
   \renewcommand{\footrulewidth}{0pt}
@@ -541,11 +554,17 @@
 % 设置正文页样式（如页眉、页脚等）
 \fancypagestyle{mainstyle}{
   \fancyhf{}
-  \fancyhead[LO]{\hspace*{1cm}\includegraphics[height=1.14cm]{figures/tongji-header.pdf}~}
-  \fancyhead[RE]{~\includegraphics[height=1.14cm]{figures/tongji-header.pdf}\hspace*{1cm}}
-  \fancyhead[RO,LE]{\tjfontbody ~\tjheadertext~\\}
-  \fancyfoot[RO]{{\tjfontbody 共\quad \pageref{LastPage}\quad 页\quad 第\quad \thepage \quad 页}}
-  \fancyfoot[LE]{{\tjfontbody 第\quad \thepage \quad 页\quad 共\quad \pageref{LastPage}\quad 页}}
+  \@ifclasswith{tongjithesis}{twoside}{%
+    \fancyhead[LO]{\hspace*{1cm}\includegraphics[height=1.14cm]{figures/tongji-header.pdf}~}
+    \fancyhead[RE]{~\includegraphics[height=1.14cm]{figures/tongji-header.pdf}\hspace*{1cm}}
+    \fancyhead[RO,LE]{\tjfontbody ~\tjheadertext~\\}
+    \fancyfoot[RO]{{\tjfontbody 共\quad \pageref{LastPage}\quad 页\quad 第\quad \thepage \quad 页}}
+    \fancyfoot[LE]{{\tjfontbody 第\quad \thepage \quad 页\quad 共\quad \pageref{LastPage}\quad 页}}
+  }{%
+    \fancyhead[L]{\hspace*{1cm}\includegraphics[height=1.14cm]{figures/tongji-header.pdf}~}
+    \fancyhead[R]{\tjfontbody ~\tjheadertext~\\}
+    \fancyfoot[R]{{\tjfontbody 共\quad \pageref{LastPage}\quad 页\quad 第\quad \thepage \quad 页}}
+  }
   \renewcommand{\headrule}{\tjdoubleheadrule}
   \renewcommand{\footrulewidth}{1.8pt}
 }

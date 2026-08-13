@@ -226,9 +226,10 @@ K = R^{-1} B^T P
 其中 $P$ 满足 Riccati 方程
 \begin{equation}
 A^T P + P A - P B R^{-1} B^T P + Q = 0 
+\label{eq:continuous-riccati}
 \end{equation}
 
-式 (3.4) 中，$A, B$ 是关于腿长 $l$ 的函数，为了降低运算量，在工作空间内采用多项式拟合的方式得到状态反馈矩阵 $K$
+\eqref{eq:continuous-riccati} 中，$A, B$ 是关于腿长 $l$ 的函数。为了降低运算量，在工作空间内采用多项式拟合的方式得到状态反馈矩阵 $K$：
 \begin{equation}
 K(l_l, l_r) = K_{K,1} + K_{K,2} l_l + K_{K,3} l_l^2 + K_{K,4} l_r + K_{K,5} l_r^2 + K_{K,6} l_l l_r 
 \end{equation}

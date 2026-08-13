@@ -375,7 +375,6 @@ F_{wh,l} = F_{wh,r}
 由于运动学与动力学方程繁多且复杂，直接化简求解较为困难，故采用python脚本进行化简求解。
 
 化简得
-% 方程 (3.13)
 \begin{equation}
 \resizebox{0.98\linewidth}{!}{$
 \frac{-R_w \left[ \ddot{\theta}_{l,l} (l_{bl} m_b + l_{wl} m_b + 2l_{wl} m_l) + \ddot{\theta}_{l,r} (l_{br} m_b + l_{wr} m_b + 2l_{wr} m_l) \right] + 2T_{lwl} + 2T_{lwr} - (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) \left[ 2I_w + R_w^2 (m_b + 2m_l + 2m_w) \right]}{2R_w} = 0
@@ -383,7 +382,6 @@ $}
 \label{eq:x_y_move}
 \end{equation}
 
-% 方程 (3.14)
 \begin{equation}
 \resizebox{0.98\linewidth}{!}{$
 \frac{R_w \left( I_b \ddot{\theta}_b + T_{bll} + T_{blr} + \ddot{\theta}_{l,l} l_c l_{wl} m_l + \ddot{\theta}_{l,r} l_c l_{wr} m_l - g l_c m_b \theta_b \right) - (T_{lwl} + T_{lwr}) l_c + (\ddot{\theta}_{wl} + \ddot{\theta}_{wr}) l_c \left[ I_w + R_w^2 (m_l + m_w) \right]}{R_w} = 0
@@ -391,7 +389,6 @@ $}
 \label{eq:pitch_move}
 \end{equation}
 
-% 方程 (3.15)
 \begin{equation}
 \resizebox{0.98\linewidth}{!}{$
 \frac{I_z R_w \left[ -\ddot{\theta}_{l,l}(l_{bl} + l_{wl}) + \ddot{\theta}_{l,r}(l_{br} + l_{wr}) \right] + 2R_l^2 (T_{lwl} - T_{lwr}) + (\ddot{\theta}_{wr} - \ddot{\theta}_{wl}) (2I_w R_l^2 + I_z R_w^2)}{2R_l R_w} = 0
@@ -405,7 +402,7 @@ $}
 
 本节构建了轮足机器人在纵向（$x$轴方向）的平移加速度与驱动力矩之间的映射关系。根据达朗贝尔原理（D'Alembert's Principle），系统在前进方向上的广义力平衡方程可表述为：$$\sum F_x = M_{eq} \cdot a_x + F_{coupling}$$
 
-等效质量与转动惯量折算：方程 (3.13) 中的系数项 $2I_w + R_{w}^{2}(m_b + 2m_l + 2m_w)$ 反映了系统的等效平移惯量。其中不仅包含机体、腿部及轮组的静质量，还通过轮径 $R_w$ 将驱动轮的转动惯量 $I_w$ 折算至线加速度维度。这体现了系统在平移过程中，能量在平动动能与转动动能之间的耦合分布。
+等效质量与转动惯量折算：\eqref{eq:x_y_move} 中的系数项 $2I_w + R_{w}^{2}(m_b + 2m_l + 2m_w)$ 反映了系统的等效平移惯量。其中不仅包含机体、腿部及轮组的静质量，还通过轮径 $R_w$ 将驱动轮的转动惯量 $I_w$ 折算至线加速度维度。这体现了系统在平移过程中，能量在平动动能与转动动能之间的耦合分布。
 
 腿部运动耦合：项 $\ddot{\theta}_{l,l}$ 与 $\ddot{\theta}_{l,r}$ 的系数代表了腿部摆动产生的惯性力对底盘平移的影响。当腿部角度发生剧烈变化时，其质心位置的水平加速度会通过关节反作用力直接作用于底盘。
 

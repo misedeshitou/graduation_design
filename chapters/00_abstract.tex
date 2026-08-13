@@ -1,23 +1,11 @@
 \MakeAbstract{
-本毕业设计针对电缆通道检测机器人，对比选择了轮腿构型的机器人进行研究，运动控制方面，本毕业设计首先对于轮腿进行全身建模，简化模型后使用LQR＋VMC，协同建模两条腿避免分别控制两侧腿导致倾倒。控制器设计方面，将五连杆腿简化为一条虚拟腿作为倒立摆进行控制，整体采用lqr控制器串联VMC转化为关节与轮毂电机输出。随后在matlab仿真平台上进行运动学动力学验证，机器人可连续通过四个0.25m障碍物，并保持稳定的运动状态。
+针对电缆通道空间狭窄、障碍物较多的特点，本文选用五连杆轮腿机器人作为检测平台，并分别研究其运动控制和局部路径规划方法。建模时将左右腿和机体偏航运动统一纳入状态空间，再把单侧五连杆机构等效为虚拟腿。控制器由LQR与VMC串联构成：LQR计算车体所需的控制量，VMC负责将其转换为轮毂及关节电机的输出。MATLAB/Simulink仿真中，机器人连续越过了四个高度为0.25~m的障碍物，越障过程中机体姿态保持稳定。
 
-在路径规划方面，本毕业设计对比了传统路径规划算法DWA与深度强化学习算法DQN和SAC，在开源环境Sparrow中进行仿真测试与参数调优。实验结果表明强化学习算法在到达率、路径效率等方面均明显优于传统路径规划算法。针对大规模数据训练加入ASL架构辅助训练，并在SAC上进行实践加快训练效率。在此基础上，本毕业设计在SAC算法前串联Transformer建构，融合历史雷达数据进行训练，增强了模型应对动态障碍物的能力，TransSAC在相同训练条件下收敛速度更快，最终到达率达到0.87，路径效率也更优。
+路径规划实验在Sparrow环境中完成。本文先以DWA作为传统方法基线，再训练DQN和SAC，并围绕动作空间、奖励函数及训练参数进行调试。为减轻环境采样与网络更新相互等待的问题，在SAC训练流程中接入Actor--Learner--Sharer架构。随后将连续多帧激光雷达观测送入Transformer编码器，并与SAC组合为TransSAC，使策略能够利用障碍物的历史运动信息。在相同训练条件下，TransSAC较早进入稳定阶段，训练末期到达率为0.87，任务步数也低于其余对比算法。
 }{运动控制，深度强化学习，路径规划，TransSAC}
     
 \MakeAbstractEng{
-\enlargethispage{2\baselineskip}
-This graduation design focuses on a detection robot for cable tunnels, specifically researching a wheel-legged configuration.
+This graduation design investigates motion control and path planning for a wheel-legged cable-channel inspection robot. A unified dynamic model incorporates both legs and the yaw motion to reduce the coordination problems associated with independent leg control. Each five-link leg is represented as a virtual leg, and an LQR controller combined with VMC maps the desired body motion to the wheel and joint motor inputs. MATLAB/Simulink simulations show that the robot can continuously traverse four 0.25~m obstacles while maintaining a stable posture.
 
-Motion Control and Modeling
-First, a whole-body dynamic model of the wheel-legged robot is developed. Both legs and the robot's yaw motion are incorporated into a unified state-space model, avoiding the coordination problems associated with controlling the two legs independently and providing a basis for stable motion control.
-
-For the controller design, each five-link leg is simplified into a virtual leg acting as an inverted pendulum. The control architecture employs an LQR controller in series with VMC to map high-level commands into joint and hub motor outputs. Kinematic and dynamic verification conducted on the MATLAB simulation platform demonstrates that the robot can continuously traverse four 0.25m obstacles while maintaining a stable motion state.
-
-Path Planning and Reinforcement Learning
-In the realm of path planning, this design compares the traditional DWA with Deep Reinforcement Learning algorithms, specifically DQN and SAC, using the open-source Sparrow environment for simulation and parameter tuning.
-
-Experimental results indicate that Reinforcement Learning significantly outperforms traditional algorithms in terms of arrival rate and path efficiency. To handle large-scale data training, an ASL architecture was integrated into the SAC framework to accelerate training efficiency.
-
-Innovation: TransSAC
-Furthermore, this design introduces a Transformer architecture serialized before the SAC algorithm to fuse historical LiDAR data. This enhancement bolsters the model's ability to navigate dynamic obstacles. The resulting TransSAC model exhibits faster convergence under identical training conditions, ultimately achieving a 0.87 arrival rate and superior path efficiency.
+For path planning, DWA, DQN, and SAC are evaluated in the open-source Sparrow environment. An Actor--Learner--Sharer architecture is introduced to improve data throughput during SAC training. TransSAC further combines a Transformer encoder with SAC to incorporate historical LiDAR observations. Under the same training conditions, TransSAC converges faster, reaches a final arrival rate of 0.87, and achieves better path efficiency.
 }{motion control, deep reinforcement learning, path planning, TransSAC}
